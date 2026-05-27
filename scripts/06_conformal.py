@@ -7,12 +7,20 @@ at evaluation time is:
 
     answer locally   iff   routing_score(x) >= 1 - q_hat
 
-Split-CP gives a formal coverage guarantee:
+The historical implementation intended the following split-CP local-rate claim:
     P(routing_score(X_test) >= 1 - q_hat) >= 1 - alpha
-provided test and conformal_cal are exchangeable. Bootstrap CI on q_hat
-quantifies sampling uncertainty.
+provided test and conformal_cal are exchangeable and calibration remains
+untouched by supervised selection. The recorded run does not meet the latter
+requirement and its saved same-sample threshold application fails an inclusion
+invariant; this formula must not be claimed as validated for these outputs.
 
 Also computes Mondrian thresholds per clinical domain (5 domains, roadmap §7.4).
+
+HISTORICAL AUDIT NOTE: these outputs are retained as executed. The procedure
+produces a threshold for the local-selection rate; it must not be cited as a
+formal guarantee of correct medical answers. The historical DOMAIN_MAP below
+also omits spelling variants present in MedMCQA, so recorded Mondrian outputs
+are not a corrected five-domain analysis.
 
 Usage:
     python scripts/06_conformal.py
@@ -28,6 +36,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+from recorded_run_guard import protect_recorded_outputs
 
 logging.basicConfig(
     level=logging.INFO,
@@ -79,7 +88,8 @@ def _compute_q_hat(routing_scores, alpha: float) -> float:
     import numpy as np
     n = len(routing_scores)
     s_cal = 1.0 - routing_scores
-    # ceiling-quantile required for the formal coverage guarantee
+    # Historical ceiling-quantile implementation; final audit identifies a
+    # same-sample threshold-inclusion failure in the recorded output.
     return float(np.quantile(
         s_cal,
         np.ceil((1 - alpha) * (n + 1)) / n,
@@ -94,6 +104,7 @@ def main() -> None:
     splits_dir = ROOT / "data" / "splits"
     results_dir = ROOT / "results"
     ckpt_dir = ROOT / "checkpoints"
+    protect_recorded_outputs([results_dir / "conformal_thresholds.json"], "scripts/06_conformal.py")
 
     log.info("Loading probe features + OOF probe scores + routing_lr + calibrator …")
     d = np.load(features_dir / "probe_features.npz", allow_pickle=False)

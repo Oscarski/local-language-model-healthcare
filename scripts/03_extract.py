@@ -1,13 +1,17 @@
 """
 KROK 4 — FEATURE EXTRACTION
 ============================
-Extracts uncertainty features and hidden states from the fine-tuned model
-for all 5 splits used downstream (probe, val, 3 test sets).
+Extracts uncertainty features and hidden states from the fine-tuned model.
+
+HISTORICAL AUDIT NOTE: this is the implementation used in the recorded
+professor run. `p_true` below is conditional P(Yes | {Yes, No}), not validated
+full-vocabulary mass or calibrated P(correct). The official MedMCQA test split
+was attempted but yielded no labelled evaluation output because `cop=-1`.
 
 Features extracted per example:
   H       — restricted entropy over A/B/C/D logits  ∈ [0, log4 ≈ 1.386]
   gap     — logit margin (top-1 minus top-2 probability) ∈ [0, 1]
-  p_true  — P(model is correct) from "Is this answer correct? (Yes/No)"
+  p_true  — conditional P(Yes | {Yes, No}) for the self-evaluation prompt
   y       — correctness label (1 = correct, 0 = wrong)
   pred    — predicted letter (A/B/C/D)
   true    — true label letter
@@ -38,7 +42,7 @@ Usage:
 Output:
     data/features/probe_features.npz        (13 307 examples)
     data/features/val_features.npz          ( 4 183 examples)
-    data/features/test_medmcqa_features.npz ( 6 150 examples)
+    # test_medmcqa was skipped in the recorded run because all labels were hidden
     data/features/test_medqa_features.npz   ( 1 273 examples)
     data/features/test_mmlu_features.npz    (   945 examples)
     data/features/{split}_hidden.npy        (corresponding hidden states)
@@ -70,6 +74,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 ROOT = Path(__file__).parent.parent
+from recorded_run_guard import protect_recorded_outputs
 
 # Token IDs verified in BLOCKER 2 ✅:  ' A'=1098, ' B'=1133, ' C'=1102, ' D'=1152
 # Both ' A' and 'A' give the same ID in Mistral's SentencePiece vocab.
@@ -687,6 +692,15 @@ def main() -> None:
     local_rank = int(os.environ.get("LOCAL_RANK", "0"))
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
     is_main = local_rank == 0
+    if is_main:
+        protect_recorded_outputs(
+            [
+                ROOT / "results" / "layer_sweep.json",
+                ROOT / "results" / "best_layer.json",
+                ROOT / "results" / "extraction_metadata.json",
+            ],
+            "scripts/03_extract.py",
+        )
 
     # Rank-aware logging — rank 0 also writes to file
     log_handlers: list[logging.Handler] = [logging.StreamHandler(sys.stdout)]

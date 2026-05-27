@@ -11,7 +11,9 @@ Two probes are produced:
      so the routing model sees probe scores that were NOT trained on the same
      example — preventing leakage.
   2. A "final" probe trained on the full 13,307 — used at evaluation time on
-     val / test_medqa / test_mmlu (where no leakage concern applies).
+     val / test_medqa / test_mmlu. This differs from the OOF probe-score
+     construction used for historical calibration and is a documented
+     formal-validity limitation of the recorded run.
 
 Usage:
     python scripts/04_probe.py
@@ -27,6 +29,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+from recorded_run_guard import protect_recorded_outputs
 
 logging.basicConfig(
     level=logging.INFO,
@@ -45,6 +48,7 @@ def main() -> None:
     features_dir = ROOT / "data" / "features"
     results_dir = ROOT / "results"
     ckpt_dir = ROOT / "checkpoints"
+    protect_recorded_outputs([results_dir / "probe_metrics.json"], "scripts/04_probe.py")
     results_dir.mkdir(exist_ok=True)
     ckpt_dir.mkdir(exist_ok=True)
 

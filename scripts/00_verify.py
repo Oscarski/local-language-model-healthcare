@@ -4,6 +4,12 @@ KROK 1 — TRZY KRYTYCZNE WERYFIKACJE
 Uruchom ten plik jako PIERWSZE przed jakimkolwiek innym krokiem.
 Blocker 3 (p_true) uruchamiaj DOPIERO po fine-tuningu (KROK 3).
 
+HISTORICAL AUDIT NOTE: BLOCKER 3 below is retained exactly as executed in the
+professor run. It applies softmax only to the Yes/No logits and then sums those
+two probabilities, so the recorded `mass` statistic is tautologically 1.0.
+It must not be interpreted as validation of full-vocabulary Yes/No mass or of
+the predictive usefulness of p_true.
+
 Użycie:
     python 00_verify.py --blocker 1    # cop encoding (uruchom teraz)
     python 00_verify.py --blocker 2    # tokenizacja ABCD (uruchom teraz)
@@ -147,8 +153,8 @@ def verify_p_true(checkpoint_path=None):
     print("\n" + "=" * 60)
     print("BLOCKER 3: Weryfikacja p(True) na fine-tuned modelu")
     print("=" * 60)
-    print("Sprawdzamy czy fine-tuned model daje sensowne P(Yes)/P(No).")
-    print("Mean(P(Yes) + P(No)) powinno być ≥ 0.30\n")
+    print("HISTORYCZNY TEST: kod normalizuje wyłącznie Yes/No, więc zapisany")
+    print("Mean(P(Yes) + P(No)) jest tautologicznie równy 1.0 i nie waliduje cechy.\n")
 
     config = load_config()
     if not config.get("blocker_2_done"):
@@ -257,20 +263,18 @@ def verify_p_true(checkpoint_path=None):
 
     if mean_mass >= 0.30:
         verdict = "INCLUDE"
-        print(f"\n✓ p(True) działa (mass={mean_mass:.3f} ≥ 0.30)")
-        print("  → WŁĄCZ p_true do routing features")
+        print(f"\nHISTORYCZNY verdict=INCLUDE (mass={mean_mass:.3f}); test jest nieważny.")
+        print("  p_true pozostaje wyłącznie częścią recorded runu; patrz REPORT.md.")
     else:
         verdict = "EXCLUDE"
-        print(f"\n⚠ p(True) zdegradowane (mass={mean_mass:.3f} < 0.30)")
-        print("  → WYKLUCZ p_true z routing features")
-        print("  → routing_feature_names = ['H', 'probe'] lub ['H', 'gap', 'probe']")
+        print(f"\nHISTORYCZNY verdict=EXCLUDE (mass={mean_mass:.3f}); patrz REPORT.md.")
 
     config["p_true_verdict"]  = verdict
     config["p_true_mean_mass"] = mean_mass
     config["blocker_3_done"]  = True
     save_config(config)
 
-    print(f"\n✓ BLOCKER 3 DONE — verdict={verdict} zapisany do src/config.json")
+    print(f"\nBLOCKER 3 historycznie zapisuje verdict={verdict}; nie stosować do nowych claimów.")
     return verdict == "INCLUDE"
 
 

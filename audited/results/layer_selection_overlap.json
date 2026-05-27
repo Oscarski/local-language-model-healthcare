@@ -1,0 +1,9 @@
+{
+  "selection_stage": "supervised_hidden_layer_sweep",
+  "seed": 42,
+  "probe_set_n": 13307,
+  "layer_sweep_sample_n": 2000,
+  "conformal_cal_n": 3307,
+  "overlap_n": 483,
+  "calibration_untouched_by_layer_selection": false
+}

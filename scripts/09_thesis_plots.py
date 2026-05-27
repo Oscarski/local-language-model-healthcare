@@ -5,6 +5,10 @@ Generates publication-quality figures for the thesis writeup. All plots use
 large fonts (axis labels ≥ 16 pt) and are saved as PDF (vector) for LaTeX
 inclusion, plus PNG (300 DPI) for previewing.
 
+HISTORICAL AUDIT NOTE: the existing files in `figures/` are preserved raw
+outputs of the professor run. Known interpretation corrections are documented
+in REPORT.md and are not applied by regenerating or overwriting those figures.
+
 Figures produced (under figures/):
   01_finetune_eval_loss.{pdf,png}      Fine-tune dynamics: failed run 2 vs successful run 3
   02_coverage_risk_curves.{pdf,png}    Selective prediction RC curves per split
@@ -31,6 +35,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+from recorded_run_guard import protect_recorded_outputs
 
 import numpy as np
 import matplotlib
@@ -232,7 +237,7 @@ def plot_coverage_risk_curves(per_split: dict) -> None:
     ax.set_xlim(0, 1.0); ax.set_ylim(0, None)
     ax.legend(loc="upper left", framealpha=0.95)
 
-    # Annotate the deployed operating point @ α=0.10 per split
+    # Annotate the recorded historical operating point @ alpha=0.10 per split
     cp = json.loads((ROOT / "results" / "evaluation.json").read_text())
     for tag in ["in_dist", "near_OOD", "far_OOD"]:
         m = cp["splits"][tag.replace("_", "-").replace("in-dist", "in-dist")
@@ -242,7 +247,7 @@ def plot_coverage_risk_curves(per_split: dict) -> None:
                    color=COLORS[tag], s=130, marker="X",
                    edgecolors="black", linewidths=1.4, zorder=5)
     ax.text(0.02, 0.02,
-            "X markers: deployed operating point @ α = 0.10",
+            "X markers: recorded operating point @ alpha = 0.10",
             transform=ax.transAxes, fontsize=12, ha="left", va="bottom",
             bbox=dict(boxstyle="round,pad=0.4", facecolor="white", alpha=0.85))
     _savefig(fig, "02_coverage_risk_curves")
@@ -270,7 +275,7 @@ def plot_cp_exchangeability() -> None:
                   yerr=[ci_lows, ci_highs], capsize=14, error_kw={"linewidth": 2})
 
     ax.axhline(target, ls="--", color=COLORS["target_line"], lw=2,
-               label=f"CP target (1 − α) = {target:.2f}")
+               label=f"nominal historical target (1 - alpha) = {target:.2f}")
 
     for bar, rate, setup_data, label in zip(bars, rates,
                                              [A, B], ["MISSES", "MEETS"]):
@@ -278,12 +283,12 @@ def plot_cp_exchangeability() -> None:
         miss = setup_data["miss_amount"]
         sign = "+" if miss >= 0 else "−"
         ax.text(bar.get_x() + bar.get_width() / 2, y + 0.025,
-                f"{rate:.3f}\n{label} target by {sign}{abs(miss):.3f}",
+                f"{rate:.3f}\n{label} nominal target by {sign}{abs(miss):.3f}",
                 ha="center", va="bottom", fontsize=13, fontweight="bold")
 
     ax.set_ylabel("Empirical local rate on val set")
-    ax.set_title(f"Conformal exchangeability diagnostic (α = {alpha}, val n = {data['n_val']})\n"
-                 "Calibrating on train-derived data violates CP; calibrating on val restores it")
+    ax.set_title(f"Historical threshold-transfer diagnostic (α = {alpha}, val n = {data['n_val']})\n"
+                 "Descriptive comparison only; not restoration of formal validity")
     ax.set_ylim(0, 1.05)
     ax.legend(loc="lower right", framealpha=0.95)
     _savefig(fig, "03_cp_exchangeability")
@@ -351,7 +356,7 @@ def plot_routing_score_distributions(per_split: dict) -> None:
         ax.hist(s[y == 0], bins=bins, color=COLORS["wrong"],
                 alpha=0.65, label="model wrong", edgecolor="white", linewidth=0.4)
         ax.axvline(decision_threshold, color="black", ls="--", lw=2,
-                   label=f"deployed threshold = {decision_threshold:.3f}")
+                   label=f"recorded threshold = {decision_threshold:.3f}")
         ax.set_xlim(0, 1)
         ax.set_title(SPLIT_LABEL[tag], fontsize=15)
         ax.set_xlabel("Routing score (P(model correct))")
@@ -444,7 +449,7 @@ def plot_signal_subset_ablation() -> None:
 
     legend_elements = [
         Patch(facecolor=COLORS["success_run"], edgecolor="black",
-              label=f"deployed: {deployed_label}"),
+              label=f"refitted recorded-feature subset: {deployed_label}"),
         Patch(facecolor=COLORS["in_dist"], edgecolor="black",
               label="alternative subset"),
     ]
@@ -476,7 +481,7 @@ def plot_mondrian_vs_split() -> None:
     b2 = ax.bar(x + w / 2, mond_rates, w, label="Mondrian (per-domain)",
                 color=COLORS["mondrian"], edgecolor="black", linewidth=1.0)
     ax.axhline(0.90, ls="--", color=COLORS["target_line"], lw=2,
-               label="CP target (1 − α) = 0.90")
+               label="nominal historical target = 0.90")
 
     for bars in (b1, b2):
         for bar in bars:
@@ -487,9 +492,8 @@ def plot_mondrian_vs_split() -> None:
     ax.set_xticks(x)
     ax.set_xticklabels([SPLIT_LABEL[t] for t in tags], fontsize=13)
     ax.set_ylabel("Empirical local rate")
-    ax.set_title("Split-CP vs Mondrian CP — per-domain stratification partially "
-                 "fixes the\nin-distribution exchangeability issue "
-                 "(but doesn't fully reach 0.90)")
+    ax.set_title("Historical split vs Mondrian output — descriptive only\n"
+                 "(domain mapping is incomplete; not a corrected result)")
     ax.set_ylim(0, 1.05)
     ax.legend(loc="lower right", framealpha=0.95)
     _savefig(fig, "08_mondrian_vs_split_cp")
@@ -515,7 +519,7 @@ def plot_per_domain_coverage() -> None:
                          for r in rates],
                   edgecolor="black", linewidth=1.0)
     ax.axhline(0.90, ls="--", color=COLORS["target_line"], lw=2,
-               label="CP target (1 − α) = 0.90")
+               label="nominal historical target = 0.90")
     for bar, r, n in zip(bars, rates, ns):
         ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.012,
                 f"{r:.3f}\nn={n}", ha="center", va="bottom", fontsize=12)
@@ -601,7 +605,7 @@ def plot_utility_vs_alpha(per_split: dict) -> None:
             ax.plot(alphas, utilities, marker="o", markersize=4,
                     color=col, label=f"c = {c}")
         ax.axvline(0.10, ls="--", color=COLORS["target_line"], lw=1.5,
-                   label="deployed α = 0.10")
+                   label="recorded alpha = 0.10")
         ax.set_xlabel("α (CP miscoverage budget)")
         if tag == "in_dist":
             ax.set_ylabel("Expected utility U(α; c)")
@@ -661,6 +665,10 @@ def plot_calibration_ablation() -> None:
 
 
 def main() -> None:
+    protect_recorded_outputs(
+        list(FIGS.glob("*.pdf")) + list(FIGS.glob("*.png")),
+        "scripts/09_thesis_plots.py",
+    )
     log.info("Loading routing scores for all 3 evaluation splits …")
     per_split = load_routing_scores_per_split()
     log.info("  loaded: %s",

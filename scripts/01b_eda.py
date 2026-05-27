@@ -11,6 +11,9 @@ KROK 2b — EDA + DATA QUALITY CHECKS
 Figury → figures/eda_*.pdf
 Raport → results/eda_report.json
 
+HISTORICAL AUDIT NOTE: zapisane EDA jest raw artifact completed runu. Claim o
+braku kontaminacji należy ograniczyć do przeprowadzonych exact/sample checks.
+
 Użycie:
     python scripts/01b_eda.py
 """
@@ -42,6 +45,7 @@ FIGURES_DIR = ROOT / "figures"
 RESULTS_DIR = ROOT / "results"
 FIGURES_DIR.mkdir(exist_ok=True)
 RESULTS_DIR.mkdir(exist_ok=True)
+from recorded_run_guard import protect_recorded_outputs
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -616,6 +620,10 @@ def run_internal_dup_check(train_single, train_ft_idx, probe_idx):
 # ─────────────────────────────────────────────────────────────────────
 
 def main():
+    protect_recorded_outputs(
+        [RESULTS_DIR / "eda_report.json", *FIGURES_DIR.glob("eda_*")],
+        "scripts/01b_eda.py",
+    )
     try:
         import datasets
         import matplotlib

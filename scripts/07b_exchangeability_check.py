@@ -5,9 +5,13 @@ The main 3-tier evaluation showed in-dist local_rate=0.79 < CP target 0.90,
 suggesting the conformal cal set (drawn from MedMCQA train via probe_set) and
 the val set (used as in-dist test) are not exchangeable.
 
-To confirm exchangeability — and not the CP method — is the culprit, re-calibrate
-CP on a held-out chunk of val itself (drawn from the same distribution as the
-test points). If the CP guarantee is then restored, the diagnosis is conclusive.
+HISTORICAL AUDIT NOTE: this script is preserved as a threshold-transfer
+diagnostic. It must not be interpreted as conclusive proof of one cause or as
+restoration of a deployed safety guarantee, because the historical calibration
+and evaluation paths use different probe-score constructions.
+
+It re-calibrates CP on held-out chunks of val and compares the empirical local
+rate against the original train-derived threshold.
 
 We run K-fold (K=5): in each fold, calibrate q_hat on 4/5 of val and test on 1/5,
 aggregate. Compare against the original train→val setup.
@@ -26,6 +30,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+from recorded_run_guard import protect_recorded_outputs
 
 logging.basicConfig(
     level=logging.INFO,
@@ -70,6 +75,10 @@ def main() -> None:
     features_dir = ROOT / "data" / "features"
     results_dir  = ROOT / "results"
     ckpt_dir     = ROOT / "checkpoints"
+    protect_recorded_outputs(
+        [results_dir / "exchangeability_check.json"],
+        "scripts/07b_exchangeability_check.py",
+    )
 
     # ------------------------------------------------------------------
     # Load all routing artefacts + the original (probe-based) q_hat
@@ -190,7 +199,7 @@ def main() -> None:
     print(f"  per-fold local_rates: "
           f"{['%.3f' % x for x in local_rate_per_fold]}")
     print()
-    print(f"  CP target (1 − α) = {1 - ALPHA:.2f}")
+    print(f"  Nominal historical local-rate target (1 − α) = {1 - ALPHA:.2f}")
     print(f"  Setup A {'MISSES' if local_rate_A < (1 - ALPHA) else 'meets'} target by "
           f"{(local_rate_A - (1 - ALPHA)):+.4f}")
     print(f"  Setup B {'MISSES' if local_rate_B < (1 - ALPHA) else 'meets'} target by "
@@ -223,9 +232,9 @@ def main() -> None:
             "miss_amount": round(local_rate_B - (1 - ALPHA), 5),
         },
         "interpretation": (
-            "If Setup B restores the CP target while Setup A misses it, "
-            "the in-dist undercoverage is caused by exchangeability violation "
-            "between probe_set (from MedMCQA train) and val, not the CP method."
+            "Historical threshold-transfer diagnostic only. Setup B attains "
+            "the nominal local-rate target on held-out val folds, but does not "
+            "isolate a causal mechanism or restore formal deployed validity."
         ),
     }
     (results_dir / "exchangeability_check.json").write_text(json.dumps(out, indent=2))

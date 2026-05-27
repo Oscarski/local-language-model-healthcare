@@ -1,154 +1,154 @@
-# Methodological Decisions Log
+# Audited Methodological Decision Log
 
-Every non-obvious decision in the pipeline is documented here with its rationale.
-This file is the source of truth for "why did we do X instead of Y" questions.
+This log is authoritative for thesis writing. It distinguishes what was
+executed in the professor run from how those results may be interpreted.
 
-Format: decision → rationale → thesis implication (where relevant).
+## Recorded Execution Decisions
 
----
+### D-01 - Preserve the completed professor run
 
-## DATA
+**Decision:** Treat the imported GPU run as immutable recorded evidence.
 
-### D-01 · Filter `choice_type == "single"` only
+**Rationale:** No further training will be performed, and the recorded
+artifacts are the experimental basis of the thesis.
 
-**Decision:** Drop all MedMCQA examples where `choice_type != "single"` before any split.
+### D-02 - Successful fine-tuning configuration
 
-**Rationale:** Multi-answer questions (e.g., "A and C", "All of the above") are incompatible with the restricted softmax over {A, B, C, D}. The model is expected to place probability mass on exactly one token; a question with two correct answers has an ambiguous ground-truth label that would corrupt both the correctness label `y` and the probe training signal.
+**Decision:** Report the successful run as LoRA bf16 with SDPA on 4 x NVIDIA
+L4 at `learning_rate=5e-5`, using `102,765` training examples and `2,000`
+`ft_val` examples for early stopping.
 
-**Effect:** 182,822 → 120,765 examples (66.1%). Lower than expected (~80%); documented in thesis Dataset section.
+**Evidence:** Training logs and `configs/finetune_config_ddp.yaml`.
 
----
+### D-03 - Evaluation dataset substitution
 
-### D-02 · Stratify probe/train split by `subject_name`
+**Decision:** Report MedMCQA validation (`n=4,183`) as nominal
+in-distribution evaluation because the official MedMCQA test labels are hidden.
 
-**Decision:** Use `stratify=subjects` (21 medical categories) when splitting off the 16K probe_set from train_ft.
+**Evidence:** Extraction logs report `cop=-1` for the official test split.
 
-**Rationale:** MedMCQA is heavily imbalanced across subjects (Medicine 9%, Skin 1.1%). Without stratification, the probe_set could under-represent rare subjects, making the correctness probe unreliable for those domains. Stratification ensures probe and train_ft have the same subject mix, so probe AUROC is not artificially inflated by subject-level confounding.
+### D-04 - Downstream repartition used in results
 
----
+**Decision:** Report the executed downstream partition as
+`routing_train=8,000`, `iso_cal=2,000`, `conformal_cal=3,307`.
 
-### D-03 · Deduplication: exact match only, not TF-IDF cosine
+**Rationale:** The earlier preparation split `9,307/4,000` remains provenance
+but was superseded by the repartition used in the recorded downstream run.
 
-**Decision:** Remove from probe_set any question that appears verbatim in train_ft (after lowercasing and stripping punctuation). TF-IDF cosine similarity was considered but rejected as the deduplication criterion.
+### D-05 - Recorded routing feature set
 
-**Rationale:** We removed 2,693 probe-set questions that appeared verbatim in the fine-tuning set. TF-IDF cosine similarity was considered but rejected: at the median prompt length of 53 tokens, template phrases such as "Which of the following is..." produce spurious high-similarity scores between semantically distinct questions. At threshold 0.90, TF-IDF removed 36.7% of probe_set — mostly false positives sharing a question template, not shared content. Exact-string matching is the only criterion that unambiguously identifies contamination at the hidden-state level: two questions with the same text will produce nearly identical hidden states regardless of fine-tuning, inflating probe AUROC.
+**Decision:** Report best layer `24` and historical routing features
+`[H, probe, p_true]`, with `gap` dropped after high correlation with entropy.
 
-**Thesis implication:** Report as: *"2,693 verbatim duplicates between train_ft and probe_set were identified and removed from probe_set (exact string match after normalisation). The source dataset (MedMCQA) was scraped from overlapping question banks, making such duplicates expected."*
+**Evidence:** `results/best_layer.json` and `results/routing_metrics.json`.
 
-**Effect:** probe_set 16,000 → 13,307; routing_train 12,000 → 9,307; iso_cal unchanged at 4,000.
+## Interpretation Decisions
 
----
+### D-06 - Raw outputs remain immutable
 
-### D-04 · Answer distribution imbalance is a Limitation, not a filter
+**Decision:** Do not overwrite raw `results/`, `figures/`, `logs/`, or the
+original professor report. New derived material is written under `audited/`.
 
-**Decision:** Do not re-balance the A/B/C/D answer distribution. Report it as a limitation.
+### D-07 - Terminology: local rate versus local accuracy
 
-**Rationale:** EDA shows A=31.5%, B=27.5%, C=23.2%, D=17.8% (max deviation ±7.2pp from uniform). Re-balancing by downsampling would reduce the training set size and introduce a selection bias not present in real-world medical MCQ deployment. The imbalance is a property of the source exam banks, not a dataset construction error. It should be acknowledged in the thesis: the model may develop a systematic bias against option D, which could affect the routing policy's uncertainty signals.
+**Decision:** Use:
 
----
+- `local_rate = P(answer locally)`;
+- `local_accuracy = P(correct | answer locally)`.
 
-### D-05 · Cross-dataset contamination: OOD sets are clean
+**Rationale:** They are different measured quantities. The former cannot be
+presented as evidence of clinical correctness.
 
-**Finding:** Zero exact-match overlaps between MedMCQA train (120,765 questions) and MedQA-USMLE test (1,273) or MMLU medical test (945). Two near-duplicates with MMLU at cosine ≥ 0.85 were false positives (short generic phrases matching by template). The OOD evaluation sets are uncontaminated.
+### D-08 - No medical safety guarantee claim
 
-**Thesis implication:** The three-tier OOD evaluation (in-dist → near-OOD → far-OOD) is methodologically valid. State explicitly in the Evaluation section.
+**Decision:** Do not state that the historical conformal procedure guarantees
+correct or safe medical answers.
 
----
+**Rationale:** It thresholds a routing score to produce a local-selection
+frequency. It does not control errors among local answers, and its recorded
+`local_rate_on_cal=0.8902` is below the nominal `0.90` target at alpha `0.10`.
 
-## MODEL & TRAINING
+### D-09 - No formal recorded local-rate guarantee claim
 
-### D-06 · LoRA FP16 primary; QLoRA 4-bit fallback only
+**Decision:** Do not state that the recorded split-conformal procedure has a
+validated formal guarantee even for `local_rate`.
 
-**Decision:** Fine-tune in full FP16 precision with LoRA adapters. Use QLoRA 4-bit NF4 only if VRAM < 24 GB, and run the KL ablation (Section 9.4) in that case.
+**Rationale:** Supervised layer selection used `2,000` examples sampled from
+the whole `probe_set`, including `483` examples later assigned to
+`conformal_cal`. Calibration used OOF probe scores while evaluation used a
+final full-probe-set model. Finally, the recorded same-sample operating point
+selects `2,944/3,307` examples where boundary-inclusive quantile application
+requires at least `2,978`; it fails a numerical invariant by `34` examples.
 
-**Rationale:** Restricted entropy and logit gap are computed directly from model logits. 4-bit NF4 quantisation compresses the dynamic range of weights, which can systematically distort logit distributions — corrupting the uncertainty signals the routing policy depends on. FP16 eliminates this confound. If QLoRA is used, the KL divergence ablation (mean KL between 4-bit and FP16 logits on 200 val examples) quantifies the distortion; if mean KL > 0.10 nats, it must be discussed in Limitations.
+### D-10 - Threshold-transfer diagnostic wording
 
----
+**Decision:** Describe KROK 8b as a threshold-transfer diagnostic, not as
+proof of a single exchangeability cause or restoration of a deployed
+guarantee.
 
-### D-07 · max_seq_len = 512 tokens
+**Rationale:** Calibration and evaluation used different probe-score
+constructions, which confounds causal interpretation.
 
-**Decision:** Truncate all prompt+answer sequences to 512 tokens during fine-tuning.
+### D-11 - Historical `p_true` limitation
 
-**Rationale:** EDA on 5,000 training examples (Mistral tokenizer) shows p50=53 tokens, p95=102, p99=149, max=314. Zero examples exceed 512 tokens. The limit is safe with a factor-of-1.6 margin above p99.
+**Decision:** Retain `p_true` as part of the recorded router but state that its
+Blocker 3 validation is invalid: the recorded mass statistic sums a two-token
+softmax and is always one.
 
----
+**Rationale:** Altering the feature would require a new downstream run.
 
-### D-08 · Loss only on the answer token (DataCollatorForCompletionOnlyLM)
+### D-12 - OOD interpretation
 
-**Decision:** Use `response_template="Answer:"` so cross-entropy loss is computed only on the single answer token (A/B/C/D), not on the full prompt.
+**Decision:** State only that MMLU medical has better recorded point metrics.
+Treat pretraining exposure or benchmark familiarity as untested hypotheses.
 
-**Rationale:** The model already knows how to generate text — we are teaching it medical MCQ answering, not language modelling. Computing loss on the prompt would dilute the gradient signal and slow convergence. The answer token is the only token where our restricted softmax operates; that is what we want to calibrate.
+### D-13 - Mondrian limitation
 
----
+**Decision:** Preserve the historical Mondrian outputs while disclosing that
+its domain mapping omitted observed spelling variants and routed those cases
+to a fallback group.
 
-## UNCERTAINTY & ROUTING
+### D-14 - Ablation wording
 
-### D-09 · Restricted entropy over {A,B,C,D} only
+**Decision:** Refer to `[H, probe, p_true]` in the ablation table as a
+refitted feature-subset variant, not the deployed artifact itself.
 
-**Decision:** Compute entropy as `H = −Σ p_i log(p_i + 1e-10)` where `p = softmax(logits[ids_ABCD])`, not over the full vocabulary.
+**Rationale:** Its operating point differs from `results/evaluation.json`.
 
-**Rationale:** Full-vocabulary entropy is dominated by the mass on unrelated tokens (punctuation, common words). Restricting to the four answer tokens gives a direct measure of the model's uncertainty about the correct option. The `1e-10` epsilon prevents `-inf` when `p_i = 0` (which can occur after softmax over exactly 4 logits).
+### D-15 - Calibration methods
 
-**Verified:** ids_ABCD = [1098, 1133, 1102, 1152] for Mistral-7B-Instruct-v0.3. All single-token. `' A'` and `'A'` produce identical token IDs — safe to use either.
+**Decision:** Report ROC-isotonic as planned but not executed; `regcal` was not
+installed. Report isotonic point estimates without claiming universal
+improvement across all external splits.
 
----
+### D-16 - Contamination statement
 
-### D-10 · 5-fold cross-fitting for probe scores on probe_set
+**Decision:** Report only supported evidence: no recorded exact cross-dataset
+matches and no confirmed near duplicates in the sampled check. Do not claim
+complete absence of contamination.
 
-**Decision:** Use out-of-fold (OOF) predictions when generating probe scores for probe_set examples. The final probe (trained on the full probe_set) is used only for val/test inference.
+**Post-run addendum:** A CPU-only exact-normalized comparison against the
+repurposed MedMCQA validation evaluation set found `1/4,183` validation
+questions in `train_ft` and `0` in `probe_set`. Retain recorded evaluation
+metrics and disclose this overlap.
 
-**Rationale:** If the probe is trained on the full probe_set and evaluated on the same probe_set, its predicted scores are optimistic — the probe has seen the labels. Cross-fitting ensures that the probe score for example `i` was generated by a model that never saw `i` during training. This is required for the routing LR to receive unbiased probe scores as input features.
+### D-17 - Tie-sensitive historical aggregate metrics
 
----
+**Decision:** Treat historical threshold-derived operating points and
+risk-coverage aggregates as recorded point estimates, not corrected
+tie-policy-robust recomputations.
 
-### D-11 · Conformal quantile: `method="higher"` (not default interpolation)
+**Rationale:** Isotonic calibration creates tied scores, and per-example score
+arrays are not present to recalculate thresholds or curves under a declared
+tie policy.
 
-**Decision:** Always use `np.quantile(..., method="higher")` when computing the conformal threshold `q_hat`.
+## Reproducibility Decision
 
-**Rationale:** Split conformal prediction requires the empirical quantile at level `⌈(1−α)(n+1)⌉/n`. The "higher" method returns the smallest value in the calibration set that is ≥ the target quantile — this is the mathematically correct choice for the finite-sample coverage guarantee. Default interpolation (linear) can return a value between two calibration scores, which breaks the formal guarantee. This is a common implementation mistake in CP papers.
+### D-18 - Evidence available without rerun
 
----
+**Decision:** The repository is complete for thesis writing from recorded
+evidence, not for full numerical replay.
 
-### D-12 · AUGRC as primary selective prediction metric
-
-**Decision:** Report AUGRC (Area Under Generalized Risk-Coverage curve) as the primary metric for selective prediction quality. AURC is secondary.
-
-**Rationale:** AUGRC (Kläser et al., NeurIPS 2024, arXiv:2407.01032) measures expected risk of undetected failures across all coverage thresholds, giving equal weight to each coverage level. Standard AURC weights high-coverage regimes more heavily, which can obscure poor performance at low escalation rates — precisely the regime where our routing policy operates in deployment. AUGRC is the more appropriate metric for a system that must control risk at a specific operating point.
-
----
-
-### D-13 · Isotonic regression calibration (vanilla sklearn); ROC-isotonic as ablation
-
-**Decision:** Use `IsotonicRegression(out_of_bounds="clip")` from sklearn as the primary calibrator. ROC-regularised isotonic regression (Dimitriadis et al. 2023, `regcal`) is evaluated in the ablation table.
-
-**Rationale:** Vanilla isotonic regression is universally available, well-understood, and monotone — it preserves the ordering of routing LR scores, which is required for the coverage guarantee to hold. ROC-isotonic optimises calibration jointly with discrimination, potentially improving Brier score at the cost of interpretability. If Brier score improvement > 0.01 in the ablation, switch primary to ROC-isotonic and document.
-
----
-
-## EVALUATION
-
-### D-14 · Conformal coverage guarantee holds only on in-distribution data
-
-**Decision:** Label the in-dist (MedMCQA test) results as "CP guarantee valid" and near-OOD / far-OOD results as "CP guarantee not valid". Do not re-calibrate for OOD sets.
-
-**Rationale:** Split CP guarantees marginal coverage only when the test distribution matches the calibration distribution (exchangeability). MedQA-USMLE and MMLU are drawn from different exam banks — the exchangeability assumption fails. We deliberately do not re-calibrate on OOD data (that would require labels at test time). The OOD results are reported as empirical observations of coverage degradation under distribution shift — which is itself the main empirical contribution of the thesis.
-
----
-
-### D-16 · Scope limited to multiple-choice questions (MCQ)
-
-**Decision:** The entire pipeline — uncertainty signals, routing, and conformal calibration — is designed and evaluated exclusively on 4-option MCQ tasks. All three datasets (MedMCQA, MedQA-USMLE, MMLU) are MCQ.
-
-**Rationale:** The primary uncertainty signals (restricted entropy H, logit gap) are computed over the closed-set distribution P(A), P(B), P(C), P(D). This is only well-defined when the answer set is finite and fixed. In open-ended generation, there are no discrete option tokens to compare — the method does not transfer directly. MCQ is the standard benchmark format in medical AI evaluation, so the scope is legitimate and well-motivated; it simply needs to be stated explicitly so reviewers don't ask.
-
-**Thesis implication (Limitations section):** "This work evaluates routing on multiple-choice questions, where uncertainty signals derived from closed-set logit distributions (H, gap) are well-defined. All three evaluation datasets (MedMCQA, MedQA-USMLE, MMLU medical) follow the 4-option MCQ format. Extension to open-ended medical questions would require alternative uncertainty quantification methods, such as semantic entropy or sampling-based approaches — this is left as future work."
-
-**Note on "on-device" claim:** 7B model in bfloat16 requires ≥8 GB VRAM — this means high-end consumer GPU or Apple Silicon with ≥16 GB unified memory, not a mobile device. The thesis should clarify this scope in the Introduction.
-
----
-
-### D-15 · Bootstrap CI: 1,000 resamples, seed=42, reported as [2.5%, 97.5%]
-
-**Decision:** All confidence intervals use 1,000 bootstrap resamples with `np.random.default_rng(seed=42)`, reporting the 2.5th and 97.5th percentiles.
-
-**Rationale:** 1,000 resamples gives stable CI estimates for the sample sizes involved (945–6,150 test examples). Percentile bootstrap (not BCa) is used for simplicity and interpretability; BCa would be more accurate for skewed statistics but the difference is negligible at these sample sizes. Seed is fixed for reproducibility.
+**Rationale:** Checkpoints and extracted feature arrays are not committed.
+CPU-only audit outputs may summarize existing JSON results but cannot replace
+missing model-level artifacts.

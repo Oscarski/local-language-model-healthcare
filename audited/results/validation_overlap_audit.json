@@ -1,0 +1,28 @@
+{
+  "audit_type": "cpu_only_public_dataset_post_run_check",
+  "interpretation": "Exact normalized matches identify direct overlap. TF-IDF nearest-neighbour items are review candidates only and are not automatically contaminants.",
+  "sizes": {
+    "train_ft": 104765,
+    "probe_set": 13307,
+    "validation": 4183
+  },
+  "exact_normalized_overlap": {
+    "train_ft_vs_validation": [
+      {
+        "validation_index": 1675,
+        "reference_indices": [
+          31357
+        ]
+      }
+    ],
+    "probe_set_vs_validation": []
+  },
+  "exact_normalized_overlap_counts": {
+    "train_ft_vs_validation": 1,
+    "probe_set_vs_validation": 0
+  },
+  "near_match_candidates_not_verdicts": {
+    "train_ft_vs_validation": [],
+    "probe_set_vs_validation": []
+  }
+}

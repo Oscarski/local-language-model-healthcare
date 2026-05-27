@@ -1,335 +1,135 @@
-# 🏥 Safe Enough to Answer Locally?
-## Risk-Controlled Escalation for On-Device Medical LLMs Using Conformal Prediction
+# Safe Enough to Answer Locally?
+## A Methodological Audit of Routing for an Edge-Deployed Medical LLM
 
-> Bachelor's thesis — Oskar Kościański
-> Mistral-7B-Instruct-v0.3 · LoRA fine-tuning · Split Conformal Prediction · MedMCQA
+> Bachelor's thesis project - Oskar Koscianski
+> Recorded model run: Mistral-7B-Instruct-v0.3, LoRA fine-tuning, 4 x NVIDIA L4
 
----
+This repository preserves a completed experiment in which a fine-tuned medical
+multiple-choice LLM was equipped with uncertainty-based routing. It is now
+organized as the source package for writing the final thesis: the empirical
+results are preserved, while the thesis critically audits what the recorded
+conformal procedure can and cannot support.
 
-## 🎯 What this project does
+The central distinction is:
 
-An edge-deployed medical LLM should know when **not** to answer. This project builds a routing policy that:
+- `local_rate = P(answer locally)`: fraction of questions answered locally.
+- `local_accuracy = P(correct | answer locally)`: quality of those local answers.
 
-1. **Fine-tunes** Mistral-7B on medical MCQ (MedMCQA, 104K examples)
-2. **Extracts** 4 uncertainty signals per question (entropy, logit gap, hidden-state probe, p(True))
-3. **Trains** a calibrated routing classifier (Logistic Regression + isotonic calibration)
-4. **Applies** split conformal prediction to give a **formal coverage guarantee**: the system escalates to a human expert whenever P(correct) is too low, with guaranteed ≥90% recall on correct answers
+The historical pipeline selected a threshold for `local_rate`. It does **not**
+establish a formal guarantee of medical-answer correctness. The recorded run
+also does not support a clean formal split-conformal guarantee for
+`local_rate`: layer-selection data overlapped its later calibration subset and
+the recorded threshold failed a same-sample inclusion invariant.
 
----
+## Recorded Experiment
 
-## 🏗️ Architecture
+### Data Flow
 
-```
-Question
-   │
-   ▼
-┌──────────────────────────────────────────────┐
-│  Mistral-7B-Instruct-v0.3 (LoRA FP16)        │
-│                                              │
-│  ┌─────────┐  ┌──────────┐  ┌──────────┐   │
-│  │ Logits  │  │ Hidden   │  │ p(True)  │   │
-│  │ A/B/C/D │  │ State L* │  │ Yes/No   │   │
-│  └────┬────┘  └────┬─────┘  └────┬─────┘   │
-└───────┼────────────┼─────────────┼──────────┘
-        │            │             │
-        ▼            ▼             │
-    H + gap      Probe LR ────────┘
-   (entropy)    (AUROC ~0.72)
-        │            │             │
-        └────────────┴─────────────┘
-                     │
-                     ▼
-            Routing LR + Isotonic Cal
-                     │
-                     ▼
-         routing_score ∈ [0, 1]
-                     │
-           ┌─────────┴─────────┐
-           │   q_hat @ α=0.10  │  ← Split Conformal Prediction
-           │   (val set, 4183) │     formal coverage guarantee
-           └─────────┬─────────┘
-                     │
-        ┌────────────┴────────────┐
-        │                         │
-        ▼                         ▼
-   ✅ Answer locally         🚨 Escalate to expert
+```text
+MedMCQA train, single-answer items: 120,765
+  |-- train_ft pool: 104,765
+  |     |-- fine-tune train: 102,765
+  |     `-- ft_val: 2,000 (early stopping)
+  `-- initial probe candidate split: 16,000
+        |-- removed normalized exact matches: 2,693
+        `-- retained probe_set: 13,307
+        |-- routing_train: 8,000
+        |-- iso_cal: 2,000
+        `-- conformal_cal: 3,307
+
+Evaluation:
+  MedMCQA val: 4,183       nominal in-distribution evaluation
+  MedQA-USMLE test: 1,273  external evaluation
+  MMLU medical: 945         external evaluation
 ```
 
----
+MedMCQA's official test split has hidden labels (`cop=-1`) and was not usable
+for labelled evaluation.
 
-## 📊 Datasets
+### Executed Configuration
 
-| Dataset | HuggingFace ID | Role | Size |
-|---|---|---|---|
-| MedMCQA | `openlifescienceai/medmcqa` | Fine-tuning + probe + calibration | 182K train / 4,183 val / 6,150 test |
-| MedQA-USMLE | `GBaker/MedQA-USMLE-4-options` | Near-OOD evaluation | 1,273 test |
-| MMLU medical | `cais/mmlu` (5 categories) | Far-OOD evaluation | 945 test |
+| Item | Recorded value |
+|---|---|
+| Fine-tuning hardware | 4 x NVIDIA L4 |
+| Training precision / attention | bf16 / SDPA |
+| Successful learning rate | `5e-5` |
+| Best eval loss | `0.6366` at epoch `0.81` |
+| Best hidden-state layer | `24` |
+| Recorded routing features | `[H, probe, p_true]` |
+| Dropped feature | `gap` (`|r(H, gap)| = 0.9564`) |
+| Historical threshold at alpha 0.10 | `q_hat=0.5814`, decision threshold `0.4186` |
 
-### Data splits (actual sizes after dedup)
+## Recorded Results
 
-```
-MedMCQA train (182,822)
-    │
-    ▼ filter choice_type == "single"  →  120,765
-    │
-    ▼ stratified split (seed=42)
-    │
-    ├── train_ft     104,765  ──── LoRA fine-tuning ONLY
-    └── probe_set     13,307  ──── probe + routing (2,693 exact-match duplicates removed)
-              │
-              ├── routing_train   9,307  ──── routing LR training
-              └── iso_cal         4,000  ──── isotonic calibration
+These are point estimates from the immutable raw result files.
 
-MedMCQA val  (4,183) ──── conformal calibration ONLY (q_hat)
-MedMCQA test (6,150) ──── in-distribution evaluation
-MedQA test   (1,273) ──── near-OOD evaluation
-MMLU test      (945) ──── far-OOD evaluation
-```
+| Split | n | Standalone accuracy | AUROC | AUGRC | local_rate | local_accuracy |
+|---|---:|---:|---:|---:|---:|---:|
+| MedMCQA val | 4,183 | 0.5687 | 0.7429 | 0.15619 | 0.7927 | 0.6339 |
+| MedQA-USMLE | 1,273 | 0.5664 | 0.6949 | 0.16899 | 0.9065 | 0.5832 |
+| MMLU medical | 945 | 0.6857 | 0.7823 | 0.09549 | 0.9206 | 0.7172 |
 
----
+## Audit Findings
 
-## ⚡ Quick Start
+1. The recorded threshold operates on local-answer frequency, not on the
+   correctness or clinical safety of locally returned answers.
+2. The recorded Blocker 3 for `p_true` calculated a two-token softmax and then
+   summed it; its `mass=1.0` pass is tautological. The signal remained in the
+   historical router, and the recorded ablation shows no observed AUROC gain
+   over `H+probe`.
+3. The recorded split-conformal interpretation is not formally supported:
+   `483` of the `2,000` supervised layer-sweep examples later belonged to
+   `conformal_cal`, and calibration used OOF probe scores while evaluation
+   used a final probe fit on the full probe set.
+4. The threshold-transfer diagnostic reports `local_rate=0.7927` when a
+   probe-derived threshold is applied to MedMCQA val and `0.9144` in val
+   cross-fold analysis. This documents a transfer problem; it does not isolate
+   a single causal explanation or restore a deployed safety guarantee.
+5. The historical threshold output reports `2,944/3,307` local decisions
+   (`local_rate_on_cal=0.8902`) at its nominal `0.90` target on the
+   calibration sample itself; inclusion of the quantile boundary required at
+   least `2,978/3,307`. It fails an internal numerical sanity check.
+6. MMLU performs best on the recorded point metrics. Any explanation based on
+   pretraining familiarity is a hypothesis, not an experimental result.
+7. The historical Mondrian analysis used an incomplete subject-name mapping;
+   its numbers are retained as recorded artifacts, not corrected results.
+8. A CPU-only post-run overlap check found `1/4,183` normalized exact
+   train-to-validation match and `0` probe-to-validation matches; the recorded
+   evaluation is retained with this disclosure.
+
+## Artifacts
+
+| Location | Meaning |
+|---|---|
+| `results/`, `figures/`, `logs/` | Immutable outputs of the professor run |
+| `artifacts/professor_run/REPORT_ORIGINAL.md` | Original, unedited run report |
+| `artifacts/professor_run/raw_artifacts.sha256` | Integrity manifest |
+| `REPORT.md` | Canonical audited report for thesis writing |
+| `configs/executed_professor_run.yaml` | Citation-safe manifest of the executed protocol |
+| `decisions.md` | Audited methodological decision log |
+| `roadmap.md` | Completed-run and writing roadmap |
+| `audited/` | CPU-only derived audit outputs, not new experiments |
+
+The repository does not contain the model checkpoints or extracted feature
+arrays required to replay downstream computations. See `PROVENANCE.md`.
+
+## CPU-Only Audit Commands
 
 ```bash
-# 1. Install
-git clone https://github.com/<your-username>/diploma-thesis
-cd diploma-thesis
-pip install -e ".[dev]"
-
-# 2. Verify critical blockers (run FIRST, before anything else)
-python scripts/00_verify.py --blocker 1   # cop encoding check
-python scripts/00_verify.py --blocker 2   # tokenization check
-# python scripts/00_verify.py --blocker 3 # after fine-tuning
-
-# 3. Prepare data splits
-python scripts/01_prepare.py
-
-# 4. Fine-tune (requires ≥24 GB VRAM)
-python scripts/02_finetune.py
-
-# 5. Extract features (requires ≥8 GB VRAM)
-python scripts/03_extract.py
-
-# 6. Train probe + routing + conformal (CPU)
-python scripts/04_probe.py
-python scripts/05_routing.py
-python scripts/06_conformal.py
-
-# 7. Full 3-tier evaluation
-make evaluate
+python scripts/10_audit_recorded_results.py
+python scripts/11_audit_validation_overlap.py
+pytest -q
 ```
 
-Config overrides via OmegaConf syntax:
-```bash
-python scripts/02_finetune.py model=qlora_4bit training.epochs=1 --debug
-python scripts/03_extract.py --splits probe --debug
-```
+These commands inspect committed evidence and create files only under
+`audited/`. They do not rerun model training, inference, routing fitting, or
+conformal calibration.
 
-### 🧪 Debug run — without the 7B model (MacBook Air / CPU)
+## Thesis Use
 
-Scripts 04–07 run fully on CPU. Scripts 02 and 03 require GPU, but you can verify the entire pipeline structure without loading Mistral:
-
-```bash
-# 1. Syntax check all scripts (instant, no imports)
-python -m py_compile scripts/02_finetune.py && echo "02 OK"
-python -m py_compile scripts/03_extract.py  && echo "03 OK"
-
-# 2. Verify configs and imports parse correctly (no GPU needed)
-python -c "
-from omegaconf import OmegaConf
-from pathlib import Path
-cfg = OmegaConf.load('configs/finetune_config.yaml')
-print('Config OK:', dict(cfg.model))
-"
-
-# 3. Run full data preparation (sklearn + HuggingFace datasets, CPU only, ~10 min)
-python scripts/01_prepare.py
-# → produces data/splits/*.json — verify sizes in meta.json
-
-# 4. Smoke-test 02_finetune --debug (512 train examples, 1 eval step, downloads tokenizer only)
-#    Still downloads the model weights (~14 GB) — skip if you don't have space
-python scripts/02_finetune.py --debug
-
-# 5. After receiving features from professor, run the rest locally:
-python scripts/04_probe.py
-python scripts/05_routing.py
-python scripts/06_conformal.py
-make evaluate
-```
-
-**What the professor sends you (~650 MB total):**
-```
-checkpoints/final/          ← LoRA adapter (~150 MB)
-data/features/*.npz         ← scalar features: H, gap, p_true, y, pred, true, subject
-data/features/*_hidden.npy  ← hidden states [N, 4096] float32 (~500 MB)
-results/layer_sweep.json    ← which layer was best
-results/extraction_metadata.json
-```
-
----
-
-## 🧠 Model Parameters
-
-| Parameter | Value | Notes |
-|---|---|---|
-| Base model | `mistralai/Mistral-7B-Instruct-v0.3` | 7B params |
-| LoRA rank | r=16 | |
-| LoRA alpha | 32 | 2×r, standard scaling |
-| LoRA target modules | 7 (q/k/v/o/gate/up/down) | Full attention + MLP |
-| LoRA dropout | 0.05 | |
-| Training dtype | bfloat16 | A100: more stable than fp16 |
-| Optimizer | adamw_torch | No page offloading needed on A100 |
-| Learning rate | 2e-4 | |
-| Scheduler | cosine | warmup_ratio=0.03 |
-| Effective batch size | 8 | per_device=1, grad_accum=8 |
-| Max epochs | 3 | with early stopping |
-| Early stopping | patience=3 @ eval_loss | eval_steps=650 |
-| Max sequence length | 512 tokens | MedMCQA prompts avg ~180 tokens |
-| Loss masking | DataCollatorForCompletionOnlyLM | loss only on `Answer:` token |
-
----
-
-## 🔍 Uncertainty Signals
-
-| Signal | Formula | Range | Intuition |
-|---|---|---|---|
-| Restricted entropy H | −Σ p_i·log(p_i+ε) over A/B/C/D | [0, log4 ≈ 1.386] | High = uncertain |
-| Logit gap | p_top1 − p_top2 after softmax | [0, 1] | Low = two options equally likely |
-| Hidden-state probe | LogisticRegression on h_L* ∈ ℝ⁴⁰⁹⁶ | [0, 1] | Internal "am I correct?" signal |
-| p(True) | P(Yes) / (P(Yes)+P(No)) on "Is this correct?" | [0, 1] | Self-evaluation under verbalization |
-
-Layer L* is selected by 5-fold CV AUROC sweep across layers {8, 16, 24, 30, 31}.
-
----
-
-## 🔀 Routing Pipeline
-
-```
-Features: [H, gap*, probe, p_true]   (* dropped if corr(H, gap) > 0.85)
-        │
-        ▼
-Logistic Regression (trained on 9,307 routing_train)
-        │
-        ▼
-Isotonic Calibration (fitted on 4,000 iso_cal)
-        │
-        ▼
-routing_score ∈ [0, 1]    ← P(model is correct | features)
-        │
-        ▼
-Split Conformal Prediction (calibrated on 4,183 val)
-        │
-        ▼
-q_hat @ α=0.10  →  threshold = 1 − q_hat
-        │
-        ├── routing_score ≥ threshold  →  Answer locally ✅
-        └── routing_score < threshold  →  Escalate 🚨
-```
-
-**Formal guarantee:** P(correct answer returned locally) ≥ 1 − α = 0.90
-
----
-
-## 💻 Hardware Requirements
-
-| Phase | GPU VRAM | Time (estimate) |
-|---|---|---|
-| Blockers 1–2 (verify) | CPU | ~30 min |
-| Fine-tuning FP16 | ≥24 GB (A100) | 1–2 days |
-| Fine-tuning QLoRA 4-bit | ≥16 GB (RTX 3090) | 2–3 days |
-| Feature extraction (28K samples) | ≥8 GB | 4–8 hours |
-| Blocker 3 (p(True) verify) | ≥8 GB | ~1 hour |
-| Probe + routing + conformal | CPU | ~2–3 hours |
-| Evaluation (3 tiers) | CPU | ~30 min |
-| Ablations | CPU + GPU | ~1 day |
-
----
-
-## 📁 Repository Structure
-
-```
-diploma-thesis/
-├── CLAUDE.md               # Claude Code instructions
-├── roadmap.md              # Full pipeline spec (living document)
-├── pyproject.toml          # Package + dependencies
-├── Makefile                # make setup / verify / finetune / evaluate
-│
-├── configs/
-│   ├── main.yaml           # Primary config (OmegaConf)
-│   ├── finetune_config.yaml
-│   ├── model/
-│   │   ├── lora_fp16.yaml  # LoRA bfloat16 (full-precision weights, no quantization)
-│   │   └── qlora_4bit.yaml # QLoRA 4-bit NF4 fallback
-│   └── data/
-│       └── datasets.yaml
-│
-├── scripts/                # Entry points (thin wrappers — no logic here)
-│   ├── 00_verify.py        # 3 critical blockers
-│   ├── 01_prepare.py       # Data splits + dedup
-│   ├── 02_finetune.py      # LoRA fine-tuning
-│   ├── 03_extract.py       # Feature extraction + layer sweep
-│   ├── 04_probe.py         # 5-fold correctness probe
-│   ├── 05_routing.py       # Routing LR + isotonic calibration
-│   ├── 06_conformal.py     # Split CP (q_hat)
-│   ├── 07_evaluate.py      # 3-tier evaluation
-│   └── 08_ablations.py     # Ablation tables
-│
-├── src/thesis/             # Installable package (all logic here)
-│   ├── data/               # Dataset loading, normalize_example()
-│   ├── models/             # Model wrappers, extract_features()
-│   ├── routing/            # probe.py, routing_lr.py, calibration.py, conformal.py
-│   └── utils/              # metrics.py (AUGRC/AURC/ECE/bootstrap), plotting.py
-│
-├── data/
-│   ├── raw/                # Original datasets — never modify (not committed)
-│   ├── splits/             # Train/probe/val indices as JSON ✅ committed
-│   └── features/           # Extracted .npz caches — not committed (~500 MB)
-│
-├── checkpoints/            # LoRA adapters — not committed (~150 MB)
-├── results/                # Evaluation JSON outputs ✅ committed
-└── figures/                # Thesis plots ✅ committed
-```
-
----
-
-## 📈 Expected Results
-
-| Metric | In-dist (MedMCQA) | Near-OOD (MedQA) | Far-OOD (MMLU) |
-|---|---|---|---|
-| Standalone accuracy | ~65–70% | ~55–65% | ~60–70% |
-| AUROC routing | ~0.70–0.80 | ~0.65–0.75 | ~0.60–0.70 |
-| Empirical coverage @ α=0.10 | ~0.90 ✅ (guaranteed) | ~0.85–0.90 | ~0.80–0.88 |
-| Escalation rate @ α=0.10 | ~15–25% | — | — |
-| AUGRC | low (main result) | higher | highest |
-
-**Key finding:** The conformal coverage guarantee holds on the in-distribution test set. Under distribution shift (MedQA → MMLU), empirical coverage degrades gracefully — this thesis quantifies exactly how much the CP guarantee breaks without recalibration.
-
----
-
-## 📏 Metrics
-
-Primary metric: **AUGRC** (Area Under Generalized Risk-Coverage curve, NeurIPS 2024, arXiv:2407.01032) — measures expected risk of undetected failures across all coverage thresholds. Lower is better.
-
-Secondary: AURC, Brier score, ECE (15 equal-mass bins), AUROC.
-
-All metrics reported with 95% bootstrap CI (1000 resamples, seed=42).
-
----
-
-## 🔁 Reproducibility
-
-- `seed=42` for **all** random operations: numpy, torch, sklearn, HuggingFace datasets
-- `TrainingArguments` uses both `seed=42` and `data_seed=42`
-- All data splits stored as JSON indices in `data/splits/` — committed to repo
-- IDS_ABCD = `[1098, 1133, 1102, 1152]` (A, B, C, D in Mistral tokenizer) — verified at runtime with `sys.exit` on mismatch
-
-```bash
-# Verify token IDs match expectations
-python scripts/00_verify.py --blocker 2
-```
-
----
-
-## 📄 License
-
-Code: MIT · MedMCQA: Apache 2.0 · MedQA-USMLE: CC-BY 4.0 · MMLU: MIT
+The canonical description of the completed experiment and its limitations is
+in `REPORT.md`. Raw figures are historical evidence; consult
+`audited/results/figure_usage_catalog.md` before using one in the thesis. The
+contribution is a rigorous case study of an uncertainty routing pipeline and
+an audit of why a formal-sounding selection procedure does not, by itself,
+establish safe local medical answering.

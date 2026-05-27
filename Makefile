@@ -1,4 +1,4 @@
-.PHONY: setup verify prepare finetune extract probe routing conformal evaluate ablations test lint clean
+.PHONY: setup verify prepare finetune extract probe routing conformal evaluate ablations audit audit-overlap verify-evidence pipeline test lint clean
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 setup:
@@ -39,8 +39,20 @@ evaluate:
 ablations:
 	python scripts/08_ablations.py
 
-# ── Full pipeline (after fine-tuning is done) ────────────────────────────────
-pipeline: extract probe routing conformal evaluate ablations
+# ── Post-run audit (CPU only; reads recorded outputs, writes audited/) ─────────
+audit:
+	python scripts/10_audit_recorded_results.py
+
+audit-overlap:
+	python scripts/11_audit_validation_overlap.py
+
+verify-evidence: audit
+	shasum -a 256 -c artifacts/professor_run/raw_artifacts.sha256
+
+# ── Historical pipeline guard ────────────────────────────────────────────────
+pipeline:
+	@printf '%s\n' 'Raw professor-run outputs are immutable. Run `make audit` instead.'
+	@exit 1
 
 # ── Dev ──────────────────────────────────────────────────────────────────────
 test:

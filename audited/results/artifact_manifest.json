@@ -1,0 +1,38 @@
+{
+  "audit_type": "secondary_analysis_of_recorded_aggregate_outputs",
+  "raw_professor_run_baseline_commit": "a34323d",
+  "upstream_professor_revision_reported": "0dd71e1d68f57e6d3125f625d99f9f9c64ac2e9f",
+  "executed_config_manifest": "configs/executed_professor_run.yaml",
+  "source_files": [
+    "results/ablations.json",
+    "results/best_layer.json",
+    "results/conformal_thresholds.json",
+    "results/eda_report.json",
+    "results/evaluation.json",
+    "results/exchangeability_check.json",
+    "results/extraction_metadata.json",
+    "results/layer_sweep.json",
+    "results/probe_metrics.json",
+    "results/routing_metrics.json"
+  ],
+  "raw_integrity": {
+    "manifest": "artifacts/professor_run/raw_artifacts.sha256",
+    "checked": 74,
+    "expected_paths": 74,
+    "missing_paths": [],
+    "unexpected_paths": [],
+    "malformed_lines": [],
+    "unsafe_paths": [],
+    "duplicate_paths": [],
+    "mismatches": []
+  },
+  "missing_for_numerical_replay": [
+    "checkpoints/final/",
+    "checkpoints/final_probe.pkl",
+    "checkpoints/routing_lr.pkl",
+    "checkpoints/calibrator.pkl",
+    "data/features/*.npz",
+    "data/features/*_hidden.npy",
+    "data/features/probe_scores_oof.npy"
+  ]
+}

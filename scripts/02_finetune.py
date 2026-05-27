@@ -32,6 +32,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from recorded_run_guard import protect_recorded_outputs
 
 log = logging.getLogger(__name__)
 
@@ -112,6 +113,7 @@ def _format_example(row: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    protect_recorded_outputs(list((Path(__file__).parent.parent / "logs").glob("*")), "scripts/02_finetune.py")
     # DDP rank detection — torchrun sets these env vars.
     local_rank = int(os.environ.get("LOCAL_RANK", "0"))
     world_size = int(os.environ.get("WORLD_SIZE", "1"))
@@ -315,9 +317,9 @@ def main() -> None:
         indices = json.loads(indices_path.read_text())
 
         # Carve 2K fine-tune eval set from train_ft (deterministic, seed=42).
-        # Conformal prediction theory requires the calibration set (MedMCQA val, 4183)
-        # to be INDEPENDENT of model selection. Using val for early stopping would
-        # mean the checkpoint was selected based on val → weakened CP guarantee.
+        # Keep MedMCQA val independent of model selection. In the completed run,
+        # val was later used as nominal in-distribution evaluation, while
+        # conformal_cal was carved from probe_set for historical thresholding.
         # Solution: use a held-out subset of train_ft for early stopping instead.
         _rng = _np.random.default_rng(42)
         _shuffled = _rng.permutation(len(indices)).tolist()
@@ -335,7 +337,7 @@ def main() -> None:
             len(train_ds), len(val_ds),
         )
         log.info(
-            "MedMCQA val (4183) → reserved ONLY for conformal calibration, not used here."
+            "MedMCQA val (4183) → reserved from model selection; used later for evaluation."
         )
     else:
         log.warning(
@@ -344,11 +346,11 @@ def main() -> None:
             indices_path,
         )
         train_ds = train_raw_filtered
-        # Fallback: use MedMCQA val. Note this weakens the formal CP guarantee.
+        # Fallback: use MedMCQA val, which contaminates later nominal evaluation.
         val_ds = raw["validation"]
         log.warning(
             "FALLBACK: using MedMCQA val for early stopping — "
-            "this weakens conformal prediction guarantee. Run 01_prepare.py first."
+            "this prevents clean later val evaluation. Run 01_prepare.py first."
         )
 
     # Debug: truncate to tiny subsets

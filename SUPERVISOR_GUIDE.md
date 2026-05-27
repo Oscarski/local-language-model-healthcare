@@ -1,119 +1,68 @@
-# Supervisor Guide — Running the GPU Steps
+# Historical Supervisor Execution Guide
 
-This guide is for the thesis supervisor who runs the fine-tuning and feature extraction on a GPU machine. The student handles everything else (probe training, routing, evaluation) locally on CPU after receiving the output files.
+This file documents the GPU phase that was performed by the supervisor before
+the final results were imported. It is retained for provenance; it is **not**
+a request to rerun training or feature extraction.
 
----
+## Recorded Execution Outcome
 
-## Prerequisites
-
-| Requirement | Details |
+| Item | Recorded outcome |
 |---|---|
-| GPU | ≥24 GB VRAM for LoRA FP16 (A100 recommended); ≥16 GB for QLoRA fallback |
-| Python | 3.11 |
-| `HF_TOKEN` | HuggingFace token — needed to download `mistralai/Mistral-7B-Instruct-v0.3` |
-| `WANDB_API_KEY` | Optional — training logs fall back to TensorBoard if not set |
+| Hardware | 4 x NVIDIA L4 |
+| Successful configuration | `configs/finetune_config_ddp.yaml`, bf16, SDPA, `LR=5e-5` |
+| Fine-tune data | `102,765` train + `2,000` `ft_val` |
+| Best checkpoint metric | eval loss `0.6366` at epoch `0.81` |
+| Extracted best layer | `24` |
+| Downstream split used | `8,000 / 2,000 / 3,307` |
 
----
+## Historical GPU Workflow
 
-## Step-by-Step
-
-```bash
-# 1. Clone and install
-git clone https://github.com/Oscarski/local-language-model-healthcare.git
-cd local-language-model-healthcare
-pip install -e ".[dev]"
-
-# 2. Set credentials (or create a .env file with these two lines)
-export HF_TOKEN=<your_huggingface_token>
-export WANDB_API_KEY=<your_wandb_key>   # optional
-
-# 3. Prepare data splits — CPU only, ~10 minutes, run once
-python scripts/01_prepare.py
-
-# 4. Verify encoding and tokenization before training — CPU only, ~1 minute
-python scripts/00_verify.py --blocker 1
-python scripts/00_verify.py --blocker 2
-
-# 5. Fine-tune — requires ≥24 GB VRAM, ~1-2 days on A100
-python scripts/02_finetune.py
-# Saves best checkpoint to: checkpoints/final/
-# Training logs visible in W&B dashboard or TensorBoard
-
-# 6. Verify p(True) signal on the fine-tuned model — ~1 hour
-python scripts/00_verify.py --blocker 3
-
-# 7. Extract features for all splits — requires ≥8 GB VRAM, ~4-8 hours
-python scripts/03_extract.py
-# Saves features to: data/features/
-```
-
----
-
-## What to Send Back to the Student
-
-Please compress and send the following (~650 MB total):
-
-```
-checkpoints/final/               ← LoRA adapter + tokenizer (~150 MB)
-data/features/*.npz              ← scalar features (H, gap, p_true, y, pred, subject)
-data/features/*_hidden.npy       ← hidden states, shape [N, 4096], float32 (~500 MB)
-results/layer_sweep.json         ← which hidden layer performed best
-results/extraction_metadata.json ← run statistics (accuracy, entropy mean, etc.)
-```
-
-The student runs everything from `04_probe.py` onwards on CPU (~2-4 hours).
-
----
-
-## If GPU Has Less Than 24 GB VRAM
-
-Use the QLoRA 4-bit fallback:
+The run consisted of:
 
 ```bash
-python scripts/02_finetune.py model=qlora_4bit
+bash scripts/launch_finetune_ddp.sh
+bash scripts/launch_extract_ddp.sh
+python scripts/04_probe.py
+python scripts/05_routing.py
+python scripts/06_conformal.py
+python scripts/07_evaluate.py
+python scripts/07b_exchangeability_check.py
+python scripts/08_ablations.py
+python scripts/09_thesis_plots.py
 ```
 
-This requires ≥16 GB VRAM and takes ~2-3 days on an RTX 3090.
+The resulting tracked JSON summaries, plots, and execution logs are preserved
+under `results/`, `figures/`, and `logs/`.
 
----
+## Artifacts Not Present In Git
 
-## Smoke Test (Verify Setup Without Full Training)
+The professor machine held additional files documented in the original run
+report:
 
-To verify the environment is correctly configured before committing to the full run:
-
-```bash
-python scripts/02_finetune.py --debug   # 512 examples, 1 eval step, ~5 minutes on GPU
-python scripts/03_extract.py --debug    # 50 examples per split, ~10 minutes on GPU
+```text
+checkpoints/final/
+checkpoints/final_probe.pkl
+checkpoints/routing_lr.pkl
+checkpoints/calibrator.pkl
+data/features/*.npz
+data/features/*_hidden.npy
+data/features/probe_scores_oof.npy
 ```
 
-Still requires GPU — `--debug` only reduces dataset size, the full 7B model is still loaded.
+These files were excluded from Git and are not available in the current
+repository. Therefore the final repository supports thesis writing and
+aggregate CPU-only auditing, but not numerical replay of model-dependent
+stages.
 
----
+## Recorded Limitations
 
-## Resuming After Interruption
-
-If training is interrupted, resume from the last checkpoint:
-
-```bash
-python scripts/02_finetune.py --resume
-```
-
-Feature extraction also resumes automatically — already-extracted splits are skipped.
-
----
-
-## Expected Output After Step 5 (Fine-tuning)
-
-The script logs training progress and prints a summary at the end:
-
-```
-KROK 3 DONE
-  Best eval_loss:  0.XXXX
-  Steps trained:   XXXX
-  Early stopped:   True/False
-  Checkpoint:      checkpoints/final/
-Next: python scripts/00_verify.py --blocker 3
-Then: python scripts/03_extract.py
-```
-
-W&B run link (if enabled): visible in terminal output after `wandb.init()`.
+- The historical `p_true` blocker accepted a tautological mass statistic; its
+  output is preserved but is not valid feature-quality evidence.
+- Historical conformal results must be read as local-selection-rate outputs,
+  not a guarantee of correct clinical answers.
+- The recorded run also does not retain a validated formal local-rate
+  conformal claim: supervised layer selection overlapped the later calibration
+  subset and the saved threshold fails its same-sample inclusion invariant.
+- The original execution narrative is preserved at
+  `artifacts/professor_run/REPORT_ORIGINAL.md`; the corrected thesis-facing
+  interpretation is in `REPORT.md`.

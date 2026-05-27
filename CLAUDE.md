@@ -1,122 +1,79 @@
-# Medical LLM Routing — Thesis Project
+# Medical LLM Routing - Final Thesis Repository
 
-Bachelor's thesis: risk-controlled escalation for on-device medical LLMs using conformal prediction.
-Full pipeline spec: @roadmap.md
+This repository contains a completed professor-run experiment plus an
+append-only methodological audit layer. The GPU pipeline has already run; do
+not modify or rerun it as part of thesis finalization.
 
-## Project layout
+## Canonical Sources
 
+- `REPORT.md` - audited final report for thesis writing.
+- `PROVENANCE.md` - raw artifact boundary and replay limitations.
+- `decisions.md` - authoritative interpretation decisions.
+- `roadmap.md` - completed-run and writing roadmap.
+- `artifacts/professor_run/REPORT_ORIGINAL.md` - original execution report.
+
+## Recorded Run
+
+```text
+Hardware:        4 x NVIDIA L4
+Fine-tuning:     LoRA bf16, SDPA, LR=5e-5
+Training data:   102,765 train + 2,000 ft_val
+Best layer:      24
+Router features: [H, probe, p_true]  (gap dropped)
+Downstream:      routing_train=8,000, iso_cal=2,000, conformal_cal=3,307
+Evaluation:      MedMCQA val, MedQA-USMLE, MMLU medical
 ```
-scripts/        # entry points — thin wrappers, no logic (00_verify.py … 08_ablations.py)
-src/thesis/     # installable package — all logic lives here
-  data/         # dataset loading, preprocessing, normalization
-  models/       # model wrappers, feature extraction
-  routing/      # probe, routing LR, isotonic calibration, conformal CP
-  utils/        # metrics (AUGRC, AURC, ECE), plotting, bootstrap CI
-configs/        # YAML configs (OmegaConf) — model and data settings
-data/
-  raw/          # original datasets — never modify
-  splits/       # train/val/test indices as JSON (committed, small)
-  features/     # extracted .npz feature caches (NOT committed)
-checkpoints/    # LoRA adapters (NOT committed)
-results/        # evaluation JSON outputs (committed)
-figures/        # plots for thesis
-notebooks/      # EDA only, not production code
-```
 
-## Setup
+## Immutable Raw Artifacts
+
+Never overwrite:
+
+- `results/*.json`
+- `figures/*`
+- `logs/*`
+- `data/splits/*_local_idx.json`
+- `artifacts/professor_run/REPORT_ORIGINAL.md`
+
+The raw run is integrity-recorded by
+`artifacts/professor_run/raw_artifacts.sha256`.
+
+## Audit Layer
+
+New derived analyses must:
+
+- read only committed recorded outputs;
+- write only to `audited/`;
+- state that they are secondary analyses of aggregate outputs, not model
+  reruns;
+- avoid formal medical-safety claims.
+
+Run:
 
 ```bash
-pip install -e ".[dev]"        # install package + dev deps
-make verify                    # run 3 critical blockers
-make finetune                  # start fine-tuning
-make evaluate                  # full evaluation pipeline
+python scripts/10_audit_recorded_results.py
+pytest -q
 ```
 
-## Key commands
+## Interpretation Rules
 
-```bash
-python scripts/00_verify.py --blocker 1      # cop encoding check (run first)
-python scripts/00_verify.py --blocker 2      # tokenization check
-python scripts/00_verify.py --blocker 3      # p(True) check (after fine-tuning)
-python scripts/01_prepare.py                 # data splits
-python scripts/02_finetune.py                # LoRA fine-tuning
-python scripts/03_extract.py                 # feature extraction + layer sweep
-python scripts/04_probe.py                   # 5-fold correctness probe
-python scripts/05_routing.py                 # routing LR + isotonic calibration
-python scripts/06_conformal.py               # conformal calibration (q_hat)
-python scripts/07_evaluate.py                # 3-tier evaluation
-python scripts/08_ablations.py               # ablation tables
-```
+- `local_rate` means fraction answered locally.
+- `local_accuracy` means correctness among answers returned locally.
+- The historical thresholding procedure does not certify correct clinical
+  answers.
+- It also does not support a clean formal `local_rate` guarantee: supervised
+  layer selection overlaps `conformal_cal` in 483 of 2,000 sweep samples and
+  the raw threshold result fails a same-sample inclusion invariant.
+- Historical `p_true` is conditional `P(Yes | {Yes, No})`; its blocker mass
+  check was tautological.
+- The val cross-fold analysis is a threshold-transfer diagnostic, not proof of
+  a single cause or restoration of a deployed guarantee.
+- MMLU causal explanations are hypotheses, not recorded findings.
 
-Config is read from `configs/main.yaml` and can be overridden:
-```bash
-python scripts/02_finetune.py model=qlora_4bit training.epochs=1
-```
+## Missing Replay Artifacts
 
-## Critical implementation details
+`checkpoints/` and `data/features/` are not committed. No model-level
+recomputation, corrected routing, or corrected conformal analysis is possible
+from this repository alone.
 
-**cop encoding (MedMCQA):** 0-indexed — `{0:'A', 1:'B', 2:'C', 3:'D'}`. ✅ VERIFIED.
-
-**Mistral tokenization:** ids_ABCD = [1098, 1133, 1102, 1152] (A,B,C,D). ✅ VERIFIED.
-Both `' A'` and `'A'` give the same token ID 1098 — safe to use either.
-Use `logits[..., [1098, 1133, 1102, 1152]]` directly for restricted entropy.
-
-**Entropy:** always use `p * torch.log(p + 1e-10)` to avoid -inf when p=0.
-
-**Conformal quantile:** always use `np.quantile(..., method="higher")` — required for
-the formal coverage guarantee. Standard interpolation breaks the math.
-
-**Data isolation:** probe_set (16K) must be excluded from fine-tuning BEFORE training.
-val set (4183) is used ONLY for conformal calibration — never for training anything.
-
-**5-fold cross-fitting:** probe_scores_oof must be computed before routing LR training.
-Routing LR trains on 12K of probe_set, isotonic calibration on the remaining 4K.
-
-**OOF probe for val/test:** use `final_probe` (trained on full 16K) for all non-probe-set inference.
-
-## Conventions
-
-- Python 3.11, type hints everywhere
-- `seed=42` for ALL random operations (numpy, torch, sklearn, datasets)
-- Config loaded via OmegaConf: `cfg = OmegaConf.load("configs/main.yaml")`
-- All results saved as JSON to `results/`; all figures to `figures/`
-- Feature arrays saved as `.npz` with named arrays: `H`, `gap`, `p_true`, `y`, `pred`, `subject`
-- Hidden states saved separately (large): `features/{split}_hidden.npy`
-- Bootstrap CI: always 1000 resamples, seed=42, report as `[low, high]`
-- Log with `logging` stdlib, not print() — except in scripts (entry points)
-
-## Datasets
-
-| Name | HuggingFace ID | Split used |
-|---|---|---|
-| MedMCQA | openlifescienceai/medmcqa | train→FT+probe, val→CP cal, test→eval |
-| MedQA-USMLE | GBaker/MedQA-USMLE-4-options | test→near-OOD |
-| MMLU medical | cais/mmlu (5 categories) | test→far-OOD |
-
-MMLU categories: clinical_knowledge, professional_medicine, college_medicine,
-medical_genetics, anatomy. (college_biology excluded — too general.)
-
-## Metrics (src/thesis/utils/metrics.py)
-
-- `compute_augrc(scores, labels)` — primary selective prediction (NeurIPS 2024)
-- `compute_aurc(scores, labels)` — secondary
-- `compute_ece(probs, labels, n_bins=15, strategy="quantile")`
-- `bootstrap_ci(fn, scores, labels, n_boot=1000)` → `[low, high]`
-- All in one file, all tested with pytest
-
-## Routing pipeline (src/thesis/routing/)
-
-```
-probe.py       — LogisticRegressionCV on hidden states, 5-fold CV
-routing_lr.py  — LogisticRegressionCV on [H, gap*, probe, p_true]
-calibration.py — IsotonicRegression(out_of_bounds="clip")
-conformal.py   — split CP and Mondrian CP
-```
-
-## Do not
-
-- Do not hardcode paths — use `pathlib.Path` and config
-- Do not commit checkpoints, features, wandb/, outputs/ — see .gitignore
-- Do not use `val` set for anything except conformal calibration
-- Do not run full fine-tuning in a notebook — use scripts/02_finetune.py
-- Do not change seeds after experiments start
+Use `configs/executed_professor_run.yaml` for executed protocol values. The
+other top-level routing/dataset configs contain superseded planning values.

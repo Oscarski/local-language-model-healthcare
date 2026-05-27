@@ -1,0 +1,56 @@
+# Citation-safe manifest of the immutable recorded professor run.
+# This is descriptive provenance, not a configuration to rerun the pipeline.
+
+provenance:
+  baseline_commit: a34323d
+  upstream_revision_reported: 0dd71e1d68f57e6d3125f625d99f9f9c64ac2e9f
+  status: recorded_historical_run
+  canonical_interpretation: REPORT.md
+
+training:
+  hardware: "4 x NVIDIA L4"
+  dtype: bfloat16
+  attention: sdpa
+  method: LoRA
+  learning_rate: 5.0e-5
+  train_examples: 102765
+  early_stopping_examples: 2000
+  best_eval_loss: 0.6366
+  best_eval_epoch: 0.81
+
+data:
+  train_ft_pool: 104765
+  initial_probe_candidates: 16000
+  probe_candidates_removed_exact_match: 2693
+  probe_set_retained: 13307
+  evaluation:
+    in_dist_nominal:
+      dataset: MedMCQA
+      split: validation
+      n: 4183
+      note: official_test_labels_hidden
+    near_ood:
+      dataset: MedQA-USMLE
+      split: test
+      n: 1273
+    far_ood:
+      dataset: MMLU_medical
+      split: test
+      n: 945
+
+routing:
+  best_layer: 24
+  features: [H, probe, p_true]
+  dropped_feature: gap
+  routing_train: 8000
+  iso_cal: 2000
+  conformal_cal: 3307
+  recorded_q_hat_alpha_0_10: 0.5814
+
+interpretation:
+  formal_medical_safety_guarantee_supported: false
+  formal_recorded_local_rate_cp_guarantee_supported: false
+  reasons:
+    - calibration_subset_reused_after_supervised_layer_selection
+    - calibration_and_evaluation_probe_score_constructions_differ
+    - recorded_same_sample_threshold_inclusion_invariant_failed

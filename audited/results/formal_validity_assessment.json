@@ -1,0 +1,18 @@
+{
+  "medical_correctness_guarantee_supported": false,
+  "recorded_local_rate_cp_guarantee_supported": false,
+  "reasons": [
+    {
+      "finding": "calibration_set_reused_after_supervised_layer_selection",
+      "evidence": "483 of 2000 layer-sweep examples occur in conformal_cal"
+    },
+    {
+      "finding": "calibration_and_evaluation_score_construction_differ",
+      "evidence": "Calibration used OOF probe scores; evaluation used a final full-probe-set probe."
+    },
+    {
+      "finding": "same_sample_threshold_inclusion_invariant_failed",
+      "evidence": "Recorded selected=2944, minimum boundary-inclusive=2978, shortfall=34."
+    }
+  ]
+}

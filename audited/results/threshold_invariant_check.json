@@ -1,0 +1,10 @@
+{
+  "alpha": 0.1,
+  "n_conformal_cal": 3307,
+  "recorded_local_rate_on_cal": 0.8902,
+  "recorded_selected_count": 2944,
+  "minimum_selected_count_if_saved_quantile_boundary_is_included": 2978,
+  "shortfall": 34,
+  "passes_same_sample_inclusion_invariant": false,
+  "interpretation": "A failure is consistent with boundary/tie or floating-point complement handling in the historical application; raw results are not recomputed."
+}

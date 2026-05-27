@@ -11,6 +11,11 @@ Implements four ablation tables per roadmap §9:
 Layer sweep (Table from roadmap §9.5) is already in results/layer_sweep.json from
 KROK 4 — included here in the JSON output for completeness.
 
+HISTORICAL AUDIT NOTE: the row using `[H, probe, p_true]` is a refitted
+feature-subset ablation, not the identical deployed routing artifact. The
+recorded run skipped ROC-isotonic because `regcal` was unavailable. Recorded
+Mondrian results also retain the historical incomplete domain mapping.
+
 Each ablation table is evaluated on:
   in-dist (MedMCQA val, 4183)
   near-OOD (MedQA, 1273)
@@ -31,6 +36,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+from recorded_run_guard import protect_recorded_outputs
 
 from thesis.utils.metrics import (
     compute_augrc, compute_aurc, compute_ece, bootstrap_ci,
@@ -126,6 +132,7 @@ def main() -> None:
     splits_dir   = ROOT / "data" / "splits"
     results_dir  = ROOT / "results"
     ckpt_dir     = ROOT / "checkpoints"
+    protect_recorded_outputs([results_dir / "ablations.json"], "scripts/08_ablations.py")
 
     # ------------------------------------------------------------------
     # Load everything
@@ -193,7 +200,7 @@ def main() -> None:
         ["H", "probe"],
         ["H", "probe", "p_true"],
         ["H", "gap", "probe", "p_true"],   # all
-        routing_features_default,           # actually deployed
+        routing_features_default,           # recorded router feature names; row is refitted
     ]
     # Dedup (default = [H, probe, p_true])
     seen = set()
@@ -449,7 +456,7 @@ def main() -> None:
     print(f"  {'Subset':<28}{'AUROC':>10}{'AUGRC':>10}{'Brier':>10}{'local_rate':>14}")
     for name, info in sig_results.items():
         m = info["per_split"]["in_dist"]
-        marker = "  ← deployed" if list(info["features"]) == list(routing_features_default) else ""
+        marker = "  <- refitted recorded-feature subset" if list(info["features"]) == list(routing_features_default) else ""
         print(f"  {name:<28}{m['auroc']:>10.4f}{m['augrc']:>10.4f}"
               f"{m['brier']:>10.4f}{m['local_rate']:>14.4f}{marker}")
 
@@ -463,7 +470,7 @@ def main() -> None:
               f"{per['far_OOD']['brier']:>14.4f}")
 
     # Table 3
-    print("\nTable 3 — CP variant (local_rate, CP target ≥ 0.90 at α=0.10)")
+    print("\nTable 3 — CP variant (recorded local_rate; nominal historical target=0.90)")
     print(f"  {'Method':<18}{'in-dist':>12}{'near-OOD':>12}{'far-OOD':>12}")
     for method, per in cp_results.items():
         print(f"  {method:<18}"

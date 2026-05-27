@@ -28,6 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+from recorded_run_guard import protect_recorded_outputs
 
 logging.basicConfig(
     level=logging.INFO,
@@ -70,6 +71,15 @@ def main() -> None:
     splits_dir = ROOT / "data" / "splits"
     results_dir = ROOT / "results"
     ckpt_dir = ROOT / "checkpoints"
+    protect_recorded_outputs(
+        [
+            results_dir / "routing_metrics.json",
+            splits_dir / "routing_train_local_idx.json",
+            splits_dir / "iso_cal_local_idx.json",
+            splits_dir / "conformal_cal_local_idx.json",
+        ],
+        "scripts/05_routing.py",
+    )
 
     log.info("Loading probe features + OOF probe scores …")
     d = np.load(features_dir / "probe_features.npz", allow_pickle=False)

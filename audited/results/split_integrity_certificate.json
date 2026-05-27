@@ -1,0 +1,29 @@
+{
+  "train_ft": {
+    "n": 104765,
+    "unique": true
+  },
+  "probe_set": {
+    "n": 13307,
+    "unique": true
+  },
+  "initial_preparation_split": {
+    "routing_train": 9307,
+    "iso_cal": 4000,
+    "status": "superseded_for_recorded_downstream_execution"
+  },
+  "executed_downstream_local_partition": {
+    "routing_train": 8000,
+    "iso_cal": 2000,
+    "conformal_cal": 3307,
+    "status": "used_in_recorded_downstream_results"
+  },
+  "properties": {
+    "train_ft_probe_disjoint": true,
+    "initial_partitions_probe_set": true,
+    "executed_local_indices_in_range": true,
+    "executed_partitions_probe_positions": true,
+    "metadata_sizes_match_indices": true
+  },
+  "valid": true
+}

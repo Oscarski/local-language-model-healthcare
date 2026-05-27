@@ -4,6 +4,11 @@ KROK 2 — DATA PREPARATION
 Tworzy deterministyczne splity train_ft / probe_set / (routing_train + iso_cal)
 i zapisuje indeksy do data/splits/ jako JSON.
 
+HISTORICAL AUDIT NOTE: ten etap zapisuje pierwotny podział probe_set
+(9,307 / 4,000). W recorded downstream run skrypt 05_routing.py dokonał
+repartition do 8,000 / 2,000 / 3,307; te lokalne indeksy są źródłem
+wyników profesora.
+
 Użycie:
     python scripts/01_prepare.py
     python scripts/01_prepare.py --dry-run   # tylko statystyki, bez zapisu
@@ -33,9 +38,21 @@ log = logging.getLogger(__name__)
 
 ROOT = Path(__file__).parent.parent
 SPLITS_DIR = ROOT / "data" / "splits"
+from recorded_run_guard import protect_recorded_outputs
 
 
 def main(dry_run: bool) -> None:
+    if not dry_run:
+        protect_recorded_outputs(
+            [
+                SPLITS_DIR / "train_ft_idx.json",
+                SPLITS_DIR / "probe_idx.json",
+                SPLITS_DIR / "routing_train_idx.json",
+                SPLITS_DIR / "iso_cal_idx.json",
+                SPLITS_DIR / "meta.json",
+            ],
+            "scripts/01_prepare.py",
+        )
     try:
         import datasets
         import numpy as np
@@ -85,11 +102,10 @@ def main(dry_run: bool) -> None:
     log.info(f"  probe_set: {len(probe_idx):,}")
 
     # ------------------------------------------------------------------
-    # 4. Deduplikacja probe_set względem train_ft (TF-IDF cosine ≥ 0.90)
+    # 4. Deduplikacja probe_set względem train_ft (exact normalized match)
     #    Uzasadnienie: duplikaty w probe powodują data leakage — model widział
     #    te pytania podczas FT, więc probe AUROC jest inflated dla tych przypadków.
-    #    Próg 0.95: przy krótkich MCQ (p50=53 tok) dopiero ≥0.95 oznacza faktycznie
-    #    to samo pytanie; 0.90 zbyt agresywne (łapie różne pytania z MCQ template).
+    #    TF-IDF similarity was rejected because MCQ templates caused false positives.
     #    train_ft zostaje nienaruszony; usuwamy tylko skażone próbki z probe.
     # ------------------------------------------------------------------
     log.info("Deduplikacja probe_set względem train_ft (exact match po normalizacji) …")

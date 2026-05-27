@@ -1,0 +1,15 @@
+{
+  "checks_passed": true,
+  "issues": [],
+  "recorded_best_layer": 24,
+  "recorded_routing_features": [
+    "H",
+    "probe",
+    "p_true"
+  ],
+  "recorded_q_hat_alpha_0_10": 0.5814,
+  "legacy_cp_guarantee_valid_true_splits": [
+    "in-dist"
+  ],
+  "legacy_field_interpretation": "Raw legacy label only; no validated formal claim is adopted."
+}

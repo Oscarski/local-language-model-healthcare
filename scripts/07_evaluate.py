@@ -10,6 +10,10 @@ For each split: compute discrimination (AUROC), selective-prediction (AUGRC,
 AURC), calibration (Brier, ECE), CP coverage (local rate at α=0.10), and the
 oracle system accuracy upper bound. Bootstrap 95% CIs on AUROC, AUGRC, Brier.
 
+HISTORICAL AUDIT NOTE: the emitted `cp_guarantee_valid` field is a legacy
+pre-diagnostic label preserved for reproducibility. The final interpretation
+in REPORT.md does not treat it as a validated safety guarantee.
+
 Usage:
     python scripts/07_evaluate.py
 """
@@ -24,6 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
+from recorded_run_guard import protect_recorded_outputs
 
 from thesis.utils.metrics import (
     compute_augrc, compute_aurc, compute_ece, bootstrap_ci,
@@ -64,6 +69,7 @@ def main() -> None:
     features_dir = ROOT / "data" / "features"
     results_dir = ROOT / "results"
     ckpt_dir = ROOT / "checkpoints"
+    protect_recorded_outputs([results_dir / "evaluation.json"], "scripts/07_evaluate.py")
 
     # ------------------------------------------------------------------
     # Load all trained models + thresholds
@@ -161,7 +167,7 @@ def main() -> None:
             "q_hat": round(q_hat, 4),
             "decision_threshold": round(decision_threshold, 4),
             "n_local": n_local,
-            "local_rate": round(local_rate, 4),   # CP target ≥ 1 - alpha = 0.90
+            "local_rate": round(local_rate, 4),   # Historical target only; see REPORT.md audit.
             "local_acc": round(local_acc, 4),
             "escalation_rate": round(1.0 - local_rate, 4),
             "system_acc_oracle": round(system_acc_oracle, 4),
@@ -173,7 +179,7 @@ def main() -> None:
         log.info("  AUGRC=%.5f [95%% CI %.5f, %.5f]", augrc, *ci_augrc)
         log.info("  Brier=%.4f [95%% CI %.4f, %.4f]   ECE=%.4f",
                  brier, ci_brier[0], ci_brier[1], ece)
-        log.info("  local_rate=%.3f (CP target ≥ %.2f, guarantee_valid=%s)  "
+        log.info("  local_rate=%.3f (historical target %.2f, legacy_flag=%s)  "
                  "local_acc=%.3f  escalation=%.3f",
                  local_rate, 1.0 - alpha_primary, cp_valid, local_acc,
                  1.0 - local_rate)
@@ -205,8 +211,8 @@ def main() -> None:
                 formatted.append(f"{v:>14.4f}")
         print(f"{k:<24}" + "".join(formatted))
     print("=" * 72)
-    print(f"  CP guarantee valid only for in-dist (cp_guarantee_valid). "
-          f"OOD splits exhibit coverage degradation — the main thesis result.")
+    print("  NOTE: cp_guarantee_valid is a legacy recorded field. REPORT.md "
+          "does not adopt a formal guarantee claim for these outputs.")
 
     # ------------------------------------------------------------------
     # Persist
