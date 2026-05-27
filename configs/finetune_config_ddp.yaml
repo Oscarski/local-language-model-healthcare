@@ -1,7 +1,9 @@
+# RECORDED EXECUTION CONFIGURATION (historical, non-runnable in this checkout).
+# Preserved to document what the professor ran; see artifacts/professor_run/executed_source.tar.gz.
 # Fine-tuning config — Mistral-7B LoRA bf16 on MedMCQA
 # DDP variant for 4× NVIDIA L4 (23 GB each, no NVLink)
 #
-# Launch:
+# Historical launch commands (disabled in the finalized thesis checkout):
 #   bash scripts/launch_finetune_ddp.sh           # detached screen session
 #   torchrun --nproc_per_node=4 scripts/02_finetune.py --config finetune_config_ddp.yaml
 #

@@ -74,7 +74,7 @@ logging.basicConfig(
 log = logging.getLogger(__name__)
 
 ROOT = Path(__file__).parent.parent
-from recorded_run_guard import protect_recorded_outputs
+from recorded_run_guard import protect_recorded_outputs, refuse_historical_execution
 
 # Token IDs verified in BLOCKER 2 ✅:  ' A'=1098, ' B'=1133, ' C'=1102, ' D'=1152
 # Both ' A' and 'A' give the same ID in Mistral's SentencePiece vocab.
@@ -686,6 +686,7 @@ def _save_split(features: dict, name: str, features_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    refuse_historical_execution("scripts/03_extract.py")
     # ------------------------------------------------------------------
     # DDP setup — torchrun sets LOCAL_RANK / WORLD_SIZE in env.
     # ------------------------------------------------------------------

@@ -11,6 +11,8 @@ not modify or rerun it as part of thesis finalization.
 - `decisions.md` - authoritative interpretation decisions.
 - `roadmap.md` - completed-run and writing roadmap.
 - `artifacts/professor_run/REPORT_ORIGINAL.md` - original execution report.
+- `artifacts/professor_run/executed_source.tar.gz` - exact executable source
+  archive at baseline commit `a34323d`.
 
 ## Recorded Run
 
@@ -32,6 +34,7 @@ Never overwrite:
 - `figures/*`
 - `logs/*`
 - `data/splits/*_local_idx.json`
+- `scripts/config.json`
 - `artifacts/professor_run/REPORT_ORIGINAL.md`
 
 The raw run is integrity-recorded by
@@ -39,10 +42,11 @@ The raw run is integrity-recorded by
 
 ## Audit Layer
 
-New derived analyses must:
+Committed derived analyses under `audited/` are thesis evidence. New review
+regenerations must:
 
 - read only committed recorded outputs;
-- write only to `audited/`;
+- write to a separate explicit output directory, not overwrite committed `audited/`;
 - state that they are secondary analyses of aggregate outputs, not model
   reruns;
 - avoid formal medical-safety claims.
@@ -50,7 +54,7 @@ New derived analyses must:
 Run:
 
 ```bash
-python scripts/10_audit_recorded_results.py
+make verify-evidence
 pytest -q
 ```
 
@@ -61,13 +65,16 @@ pytest -q
 - The historical thresholding procedure does not certify correct clinical
   answers.
 - It also does not support a clean formal `local_rate` guarantee: supervised
-  layer selection overlaps `conformal_cal` in 483 of 2,000 sweep samples and
-  the raw threshold result fails a same-sample inclusion invariant.
+  layer selection overlaps `conformal_cal` in 483 of 2,000 sweep samples, OOF
+  probe scores preceded an outcome-stratified downstream partition, and the
+  raw threshold result fails a same-sample inclusion invariant.
 - Historical `p_true` is conditional `P(Yes | {Yes, No})`; its blocker mass
   check was tautological.
 - The val cross-fold analysis is a threshold-transfer diagnostic, not proof of
   a single cause or restoration of a deployed guarantee.
 - MMLU causal explanations are hypotheses, not recorded findings.
+- The raw labels `near-OOD` and `far-OOD` are historical; final prose should
+  call them external MedQA and external MMLU medical evaluations.
 
 ## Missing Replay Artifacts
 

@@ -4,7 +4,9 @@
 This is the canonical report for writing the final bachelor thesis. It
 interprets the completed professor-run experiment using only preserved
 evidence. The original unedited execution report is retained at
-`artifacts/professor_run/REPORT_ORIGINAL.md`.
+`artifacts/professor_run/REPORT_ORIGINAL.md`, and the exact executable source
+snapshot associated with that run is preserved in
+`artifacts/professor_run/executed_source.tar.gz`.
 
 ## Executive Summary
 
@@ -18,8 +20,9 @@ not supported. The recorded conformal step thresholds the frequency with which
 the system answers locally (`local_rate`); it is not a formal guarantee that
 locally returned medical answers are correct (`local_accuracy`). Moreover, a
 clean formal claim even for the recorded `local_rate` procedure is unsupported:
-supervised layer selection reused part of the later calibration subset and the
-saved threshold fails a same-sample inclusion invariant. The final thesis
+the probe/calibration construction was not a clean fixed-score split protocol,
+supervised layer selection reused part of the later calibration subset, and
+the saved threshold fails a same-sample inclusion invariant. The final thesis
 therefore presents the completed system together with a methodological audit
 of the gap between intended safety claims and the recorded evidence.
 
@@ -96,17 +99,25 @@ thesis conclusion.
 
 ### Why The Recorded Split-CP Validity Is Unsupported
 
-Three recorded-protocol issues prevent a formal claim for `local_rate`:
+Five recorded-protocol issues prevent a formal claim for `local_rate`:
 
-1. Layer `24` was selected through supervised evaluation on a deterministic
+1. The OOF correctness-probe scores were generated across the full retained
+   `probe_set` before that set was repartitioned into `routing_train`,
+   `iso_cal`, and `conformal_cal`. Consequently, `conformal_cal` was not an
+   untouched calibration subset for a score construction fixed independently
+   of that full pool.
+2. Both recorded downstream partitioning calls used the correctness outcome
+   `y` for stratification. This is a disclosed dependency of the historical
+   protocol, not a corrected prospective calibration design.
+3. Layer `24` was selected through supervised evaluation on a deterministic
    random sample of `2,000` examples from the full `probe_set`. Reconstructing
    those indices and the saved downstream split shows that `483` of these
    examples later occur in `conformal_cal`; the calibration subset was
    therefore not untouched by model/feature selection.
-2. Calibration used OOF probe scores on `probe_set`, while evaluation used the
+4. Calibration used OOF probe scores on `probe_set`, while evaluation used the
    final probe trained on the full `probe_set`. The score construction is not
    fixed between calibration and evaluation.
-3. For `n=3,307` and `alpha=0.10`, inclusion of the saved conformal quantile
+5. For `n=3,307` and `alpha=0.10`, inclusion of the saved conformal quantile
    on the same calibration sample requires at least
    `ceil((n+1)*(1-alpha)) = 2,978` selected examples. The raw output reports
    `local_rate_on_cal=0.8902`, uniquely corresponding to only `2,944`
@@ -117,10 +128,28 @@ Three recorded-protocol issues prevent a formal claim for `local_rate`:
 These findings do not alter raw results; they restrict the claims that may be
 made from them.
 
+### Descriptive Accepted-Error Analysis
+
+Using only recorded aggregate counts, the saved operating point can be
+described in terms of errors still answered locally:
+
+| Evaluation set | Total model errors | Errors answered locally | Errors not answered locally | Descriptive fraction not answered locally |
+|---|---:|---:|---:|---:|
+| MedMCQA val | 1,804 | 1,214 | 590 | 0.3271 |
+| MedQA-USMLE | 552 | 481 | 71 | 0.1286 |
+| MMLU medical | 297 | 246 | 51 | 0.1717 |
+
+This is a secondary reconstruction from saved point estimates, not a new
+experiment and not a clinical safety guarantee.
+
 ### Post-Run Validation Overlap Check
 
 A bounded CPU-only audit using public MedMCQA text and committed split indices
 checked the later choice of validation as nominal in-distribution evaluation.
+The audit is pinned to dataset revision
+`91c6572c454088bf71b679ad90aa8dffcd0d5868` and records fingerprints and
+normalized-input hashes so that an upstream data change cannot silently alter
+this finding.
 Normalized exact matching found `1` validation question present in `train_ft`
 and `0` present in `probe_set`. This is disclosed as a small
 training-to-evaluation overlap (`1/4,183`); it does not justify altering the
@@ -155,12 +184,14 @@ subset has point-estimate AUROC `0.7407`, versus `0.7419` for refitted
 `H+probe`. This is reported as no observed improvement, not a statistical
 proof of zero contribution.
 
-### OOD Results
+### External Evaluation Results
 
 The MMLU medical split has the best recorded point metrics. This observation
 is valid. Possible explanations, including greater familiarity from
 pretraining or benchmark exposure, were not tested in this run and remain
-hypotheses.
+hypotheses. Raw outputs retain historical `near-OOD` and `far-OOD` labels;
+thesis-facing text should refer to external MedQA-USMLE and external MMLU
+medical evaluations rather than asserting a validated shift severity.
 
 ### Mondrian Analysis
 
@@ -197,9 +228,13 @@ and are integrity-recorded in
 `artifacts/professor_run/raw_artifacts.sha256`. The original report remains in
 `artifacts/professor_run/REPORT_ORIGINAL.md`.
 
-New CPU-only audit outputs are generated under `audited/`. They summarize
-preserved aggregate evidence and must not be described as a model rerun.
-Raw plotted interpretations are also historical artifacts; the corrected
-figure-use guidance is generated under `audited/results/`. Further provenance
-detail is in `PROVENANCE.md`, and executed protocol values suitable for
-citation are in `configs/executed_professor_run.yaml`.
+Committed CPU-only audit outputs are preserved under `audited/`. They
+summarize preserved aggregate evidence and must not be described as a model
+rerun. Their checksums are maintained separately from raw professor outputs;
+normal verification is read-only. Raw plotted interpretations are also
+historical artifacts; the corrected figure-use guidance is under
+`audited/results/`. Further provenance detail is in `PROVENANCE.md`, and
+executed protocol values suitable for citation are in
+`configs/executed_professor_run.yaml`.
+Known corrections for immutable raw artifacts are listed in
+`audited/results/raw_artifact_errata.md`.

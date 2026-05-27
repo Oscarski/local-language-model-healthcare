@@ -4,54 +4,63 @@
 setup:
 	pip install -e ".[dev]"
 
-# ── Pipeline steps ───────────────────────────────────────────────────────────
-verify:
-	python scripts/00_verify.py --blocker 1
-	python scripts/00_verify.py --blocker 2
+# ── Recorded evidence verification (read-only) ──────────────────────────────
+verify: verify-evidence
+	python scripts/00_verify.py --blocker status
 
 verify-all:
-	python scripts/00_verify.py --blocker all
+	@printf '%s\n' 'Historical blocker reruns are disabled: scripts/config.json is immutable evidence.'
+	@exit 1
 
 prepare:
-	python scripts/01_prepare.py
+	@printf '%s\n' 'Historical pipeline entrypoint disabled in this finalized thesis checkout.'
+	@exit 1
 
 finetune:
-	python scripts/02_finetune.py
+	@printf '%s\n' 'Historical pipeline entrypoint disabled in this finalized thesis checkout.'
+	@exit 1
 
 finetune-qlora:
-	python scripts/02_finetune.py model=qlora_4bit
+	@printf '%s\n' 'QLoRA was not part of the recorded run; no rerun is enabled here.'
+	@exit 1
 
 extract:
-	python scripts/03_extract.py
+	@printf '%s\n' 'Historical pipeline entrypoint disabled in this finalized thesis checkout.'
+	@exit 1
 
 probe:
-	python scripts/04_probe.py
+	@printf '%s\n' 'Historical pipeline entrypoint disabled in this finalized thesis checkout.'
+	@exit 1
 
 routing:
-	python scripts/05_routing.py
+	@printf '%s\n' 'Historical pipeline entrypoint disabled in this finalized thesis checkout.'
+	@exit 1
 
 conformal:
-	python scripts/06_conformal.py
+	@printf '%s\n' 'Historical pipeline entrypoint disabled in this finalized thesis checkout.'
+	@exit 1
 
 evaluate:
-	python scripts/07_evaluate.py
+	@printf '%s\n' 'Historical pipeline entrypoint disabled in this finalized thesis checkout.'
+	@exit 1
 
 ablations:
-	python scripts/08_ablations.py
+	@printf '%s\n' 'Historical pipeline entrypoint disabled in this finalized thesis checkout.'
+	@exit 1
 
-# ── Post-run audit (CPU only; reads recorded outputs, writes audited/) ─────────
+# ── Post-run audit (CPU only; regeneration writes outside tracked evidence) ───
 audit:
-	python scripts/10_audit_recorded_results.py
+	python scripts/10_audit_recorded_results.py --output-dir /tmp/diploma-thesis-audit-regeneration
 
 audit-overlap:
-	python scripts/11_audit_validation_overlap.py
+	python scripts/11_audit_validation_overlap.py --output-dir /tmp/diploma-thesis-overlap-audit
 
-verify-evidence: audit
-	shasum -a 256 -c artifacts/professor_run/raw_artifacts.sha256
+verify-evidence:
+	python scripts/10_audit_recorded_results.py --verify-only
 
 # ── Historical pipeline guard ────────────────────────────────────────────────
 pipeline:
-	@printf '%s\n' 'Raw professor-run outputs are immutable. Run `make audit` instead.'
+	@printf '%s\n' 'Raw professor-run outputs are immutable. Run `make verify-evidence` instead.'
 	@exit 1
 
 # ── Dev ──────────────────────────────────────────────────────────────────────
@@ -71,7 +80,8 @@ clean:
 	find . -name "*.pyc" -delete
 
 clean-features:
-	rm -rf data/features/*.npz data/features/*.npy
+	@printf '%s\n' 'Feature cleanup disabled: this is a finalized recorded-run checkout.'
+	@exit 1
 
 # ── Status ───────────────────────────────────────────────────────────────────
 status:

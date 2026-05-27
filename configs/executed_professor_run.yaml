@@ -51,6 +51,8 @@ interpretation:
   formal_medical_safety_guarantee_supported: false
   formal_recorded_local_rate_cp_guarantee_supported: false
   reasons:
+    - oof_probe_constructed_before_downstream_calibration_partition
+    - downstream_partition_stratified_by_correctness_label
     - calibration_subset_reused_after_supervised_layer_selection
     - calibration_and_evaluation_probe_score_constructions_differ
     - recorded_same_sample_threshold_inclusion_invariant_failed

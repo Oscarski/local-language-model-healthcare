@@ -1,5 +1,15 @@
 {
   "audit_type": "cpu_only_public_dataset_post_run_check",
+  "input_provenance": {
+    "dataset_id": "openlifescienceai/medmcqa",
+    "dataset_revision": "91c6572c454088bf71b679ad90aa8dffcd0d5868",
+    "raw_train_fingerprint": "2cf972b7703aa767",
+    "single_train_fingerprint": "956e90d9579ab1e4",
+    "validation_fingerprint": "0598613f1e3b097f",
+    "normalized_train_ft_sha256": "a08856a558a7053db9e36edc00f0c0684912443d2d021231609b691572acc8b3",
+    "normalized_probe_set_sha256": "d3e818c26b97bd852ab57acf807fe82b1acdb410d9c84f5a4e204892cc0a8aaa",
+    "normalized_validation_sha256": "ec18fcf00b193eb2c7291e67b2a3b64b3c9bd3c82fe6e5b0a3e72959add88c2b"
+  },
   "interpretation": "Exact normalized matches identify direct overlap. TF-IDF nearest-neighbour items are review candidates only and are not automatically contaminants.",
   "sizes": {
     "train_ft": 104765,

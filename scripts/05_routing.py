@@ -14,6 +14,13 @@ These three subsets of probe_set (n=13,307) are disjoint, drawn with seed=42.
 Routing features: [H, gap*, probe, p_true]
 where gap is dropped if abs(corr(H, gap)) > 0.85 (roadmap §5).
 
+HISTORICAL AUDIT NOTE: OOF probe scores were constructed over the full
+``probe_set`` before this outcome-stratified downstream partition was made.
+The saved procedure later reused part of ``conformal_cal`` during supervised
+layer selection and changed probe-score construction between calibration and
+evaluation. Retain this code as executed; do not cite its output as a
+validated formal local-rate guarantee.
+
 Usage:
     python scripts/05_routing.py
 """
@@ -28,7 +35,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from recorded_run_guard import protect_recorded_outputs
+from recorded_run_guard import protect_recorded_outputs, refuse_historical_execution
 
 logging.basicConfig(
     level=logging.INFO,
@@ -60,6 +67,7 @@ def _build_feature_matrix(rows: list[int],
 
 
 def main() -> None:
+    refuse_historical_execution("scripts/05_routing.py")
     import numpy as np
     import pandas as pd
     from sklearn.linear_model import LogisticRegressionCV

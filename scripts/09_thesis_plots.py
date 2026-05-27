@@ -12,7 +12,7 @@ in REPORT.md and are not applied by regenerating or overwriting those figures.
 Figures produced (under figures/):
   01_finetune_eval_loss.{pdf,png}      Fine-tune dynamics: failed run 2 vs successful run 3
   02_coverage_risk_curves.{pdf,png}    Selective prediction RC curves per split
-  03_cp_exchangeability.{pdf,png}      Local rate: Setup A vs B — the diagnostic finding
+  03_cp_exchangeability.{pdf,png}      Recorded threshold-transfer diagnostic
   04_reliability_diagrams.{pdf,png}    Calibration per split (3-panel)
   05_routing_score_distributions.{pdf,png}  Score histograms split by correctness
   06_layer_sweep.{pdf,png}             Per-layer probe AUROC
@@ -35,7 +35,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from recorded_run_guard import protect_recorded_outputs
+from recorded_run_guard import protect_recorded_outputs, refuse_historical_execution
 
 import numpy as np
 import matplotlib
@@ -97,7 +97,6 @@ SPLIT_LABEL = {
 }
 
 FIGS = ROOT / "figures"
-FIGS.mkdir(exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -254,10 +253,10 @@ def plot_coverage_risk_curves(per_split: dict) -> None:
 
 
 # ===========================================================================
-# Plot 3 — CP exchangeability comparison (THE thesis finding)
+# Plot 3 — Recorded threshold-transfer diagnostic
 # ===========================================================================
 def plot_cp_exchangeability() -> None:
-    log.info("Plot 3 — CP exchangeability")
+    log.info("Plot 3 — recorded threshold-transfer diagnostic")
     data = json.loads((ROOT / "results" / "exchangeability_check.json").read_text())
     alpha = data["alpha"]
     target = data["cp_target"]
@@ -414,7 +413,7 @@ def plot_signal_subset_ablation() -> None:
     log.info("Plot 7 — signal subset ablation")
     data = json.loads((ROOT / "results" / "ablations.json").read_text())
     sig = data["ablations"]["table1_signal_subset"]
-    deployed_feats = data["default_routing_features"]
+    recorded_feature_subset = data["default_routing_features"]
 
     names = list(sig.keys())
     aurocs = [sig[n]["per_split"]["in_dist"]["auroc"] for n in names]
@@ -424,14 +423,14 @@ def plot_signal_subset_ablation() -> None:
     fig, axes = plt.subplots(1, 3, figsize=(16, 6))
     x = np.arange(len(names))
 
-    deployed_label = "+".join(deployed_feats)
-    bar_colors = [COLORS["success_run"] if n == deployed_label else COLORS["in_dist"]
+    recorded_feature_subset_label = "+".join(recorded_feature_subset)
+    bar_colors = [COLORS["success_run"] if n == recorded_feature_subset_label else COLORS["in_dist"]
                   for n in names]
 
     metrics = [
         ("AUROC (↑ better)",           aurocs, axes[0], 0.55, max(aurocs) + 0.03),
         ("AUGRC (↓ better)",           augrcs, axes[1], None, None),
-        ("local rate @ α=0.10 (target 0.90)", local_rates, axes[2], 0.5, 1.0),
+        ("local rate @ α=0.10 (nominal historical target 0.90)", local_rates, axes[2], 0.5, 1.0),
     ]
     for title, values, ax, ylo, yhi in metrics:
         bars = ax.bar(x, values, color=bar_colors, edgecolor="black", linewidth=1.0)
@@ -449,7 +448,7 @@ def plot_signal_subset_ablation() -> None:
 
     legend_elements = [
         Patch(facecolor=COLORS["success_run"], edgecolor="black",
-              label=f"refitted recorded-feature subset: {deployed_label}"),
+              label=f"refitted recorded-feature subset: {recorded_feature_subset_label}"),
         Patch(facecolor=COLORS["in_dist"], edgecolor="black",
               label="alternative subset"),
     ]
@@ -665,6 +664,7 @@ def plot_calibration_ablation() -> None:
 
 
 def main() -> None:
+    refuse_historical_execution("scripts/09_thesis_plots.py")
     protect_recorded_outputs(
         list(FIGS.glob("*.pdf")) + list(FIGS.glob("*.png")),
         "scripts/09_thesis_plots.py",

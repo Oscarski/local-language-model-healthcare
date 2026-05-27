@@ -1,9 +1,9 @@
 """
 KROK 8b — CP EXCHANGEABILITY DIAGNOSTIC
 ========================================
-The main 3-tier evaluation showed in-dist local_rate=0.79 < CP target 0.90,
-suggesting the conformal cal set (drawn from MedMCQA train via probe_set) and
-the val set (used as in-dist test) are not exchangeable.
+The main 3-tier evaluation showed in-dist local_rate=0.79 below its nominal
+historical target of 0.90 when a probe-derived threshold was transferred to
+MedMCQA val.
 
 HISTORICAL AUDIT NOTE: this script is preserved as a threshold-transfer
 diagnostic. It must not be interpreted as conclusive proof of one cause or as
@@ -30,7 +30,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from recorded_run_guard import protect_recorded_outputs
+from recorded_run_guard import protect_recorded_outputs, refuse_historical_execution
 
 logging.basicConfig(
     level=logging.INFO,
@@ -69,6 +69,7 @@ def _compute_q_hat(routing_scores, alpha):
 
 
 def main() -> None:
+    refuse_historical_execution("scripts/07b_exchangeability_check.py")
     import numpy as np
     from sklearn.model_selection import StratifiedKFold
 
@@ -181,7 +182,7 @@ def main() -> None:
     # Print + persist
     # ------------------------------------------------------------------
     print("\n" + "=" * 72)
-    print(f"CP exchangeability diagnostic on MedMCQA val (n={n}, α={ALPHA})")
+    print(f"Historical threshold-transfer diagnostic on MedMCQA val (n={n}, α={ALPHA})")
     print("=" * 72)
     print(f"{'Setup':<45}{'q_hat':>10}{'local_rate':>14}{'local_acc':>12}")
     print("-" * 72)

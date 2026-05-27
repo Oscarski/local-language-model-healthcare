@@ -1,8 +1,9 @@
 """
 KROK 1 — TRZY KRYTYCZNE WERYFIKACJE
 ====================================
-Uruchom ten plik jako PIERWSZE przed jakimkolwiek innym krokiem.
-Blocker 3 (p_true) uruchamiaj DOPIERO po fine-tuningu (KROK 3).
+This file is retained as recorded source code. The completed repository permits
+only ``--blocker status``; re-running historical blocker checks would overwrite
+the evidence-bearing ``scripts/config.json`` file.
 
 HISTORICAL AUDIT NOTE: BLOCKER 3 below is retained exactly as executed in the
 professor run. It applies softmax only to the Yes/No logits and then sums those
@@ -10,17 +11,17 @@ two probabilities, so the recorded `mass` statistic is tautologically 1.0.
 It must not be interpreted as validation of full-vocabulary Yes/No mass or of
 the predictive usefulness of p_true.
 
-Użycie:
-    python 00_verify.py --blocker 1    # cop encoding (uruchom teraz)
-    python 00_verify.py --blocker 2    # tokenizacja ABCD (uruchom teraz)
-    python 00_verify.py --blocker 3    # p(True) (uruchom po fine-tuningu)
-    python 00_verify.py --blocker all  # wszystkie naraz (po fine-tuningu)
+Użycie w finalized repository:
+    python scripts/00_verify.py --blocker status
 """
 
 import argparse
 import json
 import os
 import sys
+from pathlib import Path
+
+from recorded_run_guard import protect_recorded_outputs
 
 # ─────────────────────────────────────────────
 # BLOCKER 1 — cop encoding w MedMCQA
@@ -77,7 +78,7 @@ def verify_cop_encoding():
     config["blocker_1_done"] = True
     save_config(config)
 
-    print(f"✓ BLOCKER 1 DONE — config zapisany do src/config.json")
+    print(f"✓ BLOCKER 1 DONE — config zapisany do scripts/config.json")
     return True
 
 
@@ -141,7 +142,7 @@ def verify_tokenization():
     config["blocker_2_done"] = True
     save_config(config)
 
-    print(f"\n✓ BLOCKER 2 DONE — ids_ABCD={ids_ABCD} zapisane do src/config.json")
+    print(f"\n✓ BLOCKER 2 DONE — ids_ABCD={ids_ABCD} zapisane do scripts/config.json")
     return True
 
 
@@ -284,6 +285,10 @@ def verify_p_true(checkpoint_path=None):
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.json")
 
+def refuse_recorded_config_overwrite(step: str) -> None:
+    protect_recorded_outputs([Path(CONFIG_PATH)], step)
+
+
 def load_config():
     if os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH) as f:
@@ -301,7 +306,11 @@ def print_config_status():
     print("=" * 60)
     b1 = "✓ DONE" if config.get("blocker_1_done") else "✗ TODO"
     b2 = "✓ DONE" if config.get("blocker_2_done") else "✗ TODO"
-    b3 = "✓ DONE" if config.get("blocker_3_done") else "✗ TODO (wymaga fine-tuningu)"
+    b3 = (
+        "RECORDED ONLY / INVALID TAUTOLOGICAL TEST"
+        if config.get("blocker_3_done")
+        else "NOT RECORDED"
+    )
     print(f"  BLOCKER 1 — cop encoding:     {b1}")
     if config.get("cop_map"):
         print(f"              cop_map = {config['cop_map']}")
@@ -312,6 +321,7 @@ def print_config_status():
     if config.get("p_true_verdict"):
         print(f"              verdict = {config['p_true_verdict']} "
               f"(mass={config.get('p_true_mean_mass', 0):.3f})")
+        print("              Not valid as p_true utility evidence; see REPORT.md.")
 
 
 # ─────────────────────────────────────────────
@@ -335,18 +345,22 @@ if __name__ == "__main__":
         print_config_status()
 
     elif args.blocker == "1":
+        refuse_recorded_config_overwrite("scripts/00_verify.py --blocker 1")
         verify_cop_encoding()
         print_config_status()
 
     elif args.blocker == "2":
+        refuse_recorded_config_overwrite("scripts/00_verify.py --blocker 2")
         verify_tokenization()
         print_config_status()
 
     elif args.blocker == "3":
+        refuse_recorded_config_overwrite("scripts/00_verify.py --blocker 3")
         verify_p_true(args.checkpoint)
         print_config_status()
 
     elif args.blocker == "all":
+        refuse_recorded_config_overwrite("scripts/00_verify.py --blocker all")
         verify_cop_encoding()
         verify_tokenization()
         print("\nBLOCKER 3 wymaga fine-tuned modelu.")

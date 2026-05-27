@@ -43,9 +43,7 @@ ROOT = Path(__file__).parent.parent
 SPLITS_DIR = ROOT / "data" / "splits"
 FIGURES_DIR = ROOT / "figures"
 RESULTS_DIR = ROOT / "results"
-FIGURES_DIR.mkdir(exist_ok=True)
-RESULTS_DIR.mkdir(exist_ok=True)
-from recorded_run_guard import protect_recorded_outputs
+from recorded_run_guard import protect_recorded_outputs, refuse_historical_execution
 
 
 # ─────────────────────────────────────────────────────────────────────
@@ -620,6 +618,7 @@ def run_internal_dup_check(train_single, train_ft_idx, probe_idx):
 # ─────────────────────────────────────────────────────────────────────
 
 def main():
+    refuse_historical_execution("scripts/01b_eda.py")
     protect_recorded_outputs(
         [RESULTS_DIR / "eda_report.json", *FIGURES_DIR.glob("eda_*")],
         "scripts/01b_eda.py",

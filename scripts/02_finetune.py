@@ -32,7 +32,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from recorded_run_guard import protect_recorded_outputs
+from recorded_run_guard import protect_recorded_outputs, refuse_historical_execution
 
 log = logging.getLogger(__name__)
 
@@ -113,6 +113,7 @@ def _format_example(row: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    refuse_historical_execution("scripts/02_finetune.py")
     protect_recorded_outputs(list((Path(__file__).parent.parent / "logs").glob("*")), "scripts/02_finetune.py")
     # DDP rank detection — torchrun sets these env vars.
     local_rank = int(os.environ.get("LOCAL_RANK", "0"))

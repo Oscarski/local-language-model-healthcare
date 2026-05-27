@@ -1,0 +1,22 @@
+name: Verify recorded thesis evidence
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  cpu-only-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install audit-only dependencies
+        run: python -m pip install pytest numpy matplotlib pyyaml
+      - name: Verify immutable evidence
+        run: PYTHONDONTWRITEBYTECODE=1 python -B scripts/10_audit_recorded_results.py --verify-only
+      - name: Run repository audit tests
+        run: PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider

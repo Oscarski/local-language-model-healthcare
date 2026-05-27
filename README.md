@@ -18,8 +18,9 @@ The central distinction is:
 The historical pipeline selected a threshold for `local_rate`. It does **not**
 establish a formal guarantee of medical-answer correctness. The recorded run
 also does not support a clean formal split-conformal guarantee for
-`local_rate`: layer-selection data overlapped its later calibration subset and
-the recorded threshold failed a same-sample inclusion invariant.
+`local_rate`: the probe/calibration construction was not an independently
+fixed score protocol, layer-selection data overlapped its later calibration
+subset, and the recorded threshold failed a same-sample inclusion invariant.
 
 ## Recorded Experiment
 
@@ -78,6 +79,8 @@ These are point estimates from the immutable raw result files.
    historical router, and the recorded ablation shows no observed AUROC gain
    over `H+probe`.
 3. The recorded split-conformal interpretation is not formally supported:
+   OOF probe scores were built on the full `probe_set` before its downstream
+   partition, that partition was stratified by correctness outcome,
    `483` of the `2,000` supervised layer-sweep examples later belonged to
    `conformal_cal`, and calibration used OOF probe scores while evaluation
    used a final probe fit on the full probe set.
@@ -89,9 +92,12 @@ These are point estimates from the immutable raw result files.
    (`local_rate_on_cal=0.8902`) at its nominal `0.90` target on the
    calibration sample itself; inclusion of the quantile boundary required at
    least `2,978/3,307`. It fails an internal numerical sanity check.
-6. MMLU performs best on the recorded point metrics. Any explanation based on
+6. The raw names `near-OOD` and `far-OOD` are historical labels; final thesis
+   text should use external MedQA and external MMLU medical evaluation unless
+   explicitly discussing those recorded labels.
+7. MMLU performs best on the recorded point metrics. Any explanation based on
    pretraining familiarity is a hypothesis, not an experimental result.
-7. The historical Mondrian analysis used an incomplete subject-name mapping;
+8. The historical Mondrian analysis used an incomplete subject-name mapping;
    its numbers are retained as recorded artifacts, not corrected results.
 8. A CPU-only post-run overlap check found `1/4,183` normalized exact
    train-to-validation match and `0` probe-to-validation matches; the recorded
@@ -103,27 +109,39 @@ These are point estimates from the immutable raw result files.
 |---|---|
 | `results/`, `figures/`, `logs/` | Immutable outputs of the professor run |
 | `artifacts/professor_run/REPORT_ORIGINAL.md` | Original, unedited run report |
-| `artifacts/professor_run/raw_artifacts.sha256` | Integrity manifest |
+| `artifacts/professor_run/raw_artifacts.sha256` | Raw evidence integrity manifest |
+| `artifacts/professor_run/executed_source.tar.gz` | Exact baseline executable source archive |
+| `scripts/config.json` | Immutable recorded blocker output metadata |
 | `REPORT.md` | Canonical audited report for thesis writing |
 | `configs/executed_professor_run.yaml` | Citation-safe manifest of the executed protocol |
 | `decisions.md` | Audited methodological decision log |
 | `roadmap.md` | Completed-run and writing roadmap |
-| `audited/` | CPU-only derived audit outputs, not new experiments |
+| `audited/` | Committed CPU-only derived audit outputs, not new experiments |
+| `artifacts/audited_layer/committed_outputs.sha256` | Integrity manifest for committed audit outputs |
 
 The repository does not contain the model checkpoints or extracted feature
 arrays required to replay downstream computations. See `PROVENANCE.md`.
 
-## CPU-Only Audit Commands
+## Read-Only Verification
 
 ```bash
-python scripts/10_audit_recorded_results.py
-python scripts/11_audit_validation_overlap.py
+make verify-evidence
 pytest -q
 ```
 
-These commands inspect committed evidence and create files only under
-`audited/`. They do not rerun model training, inference, routing fitting, or
+These commands inspect committed evidence without regenerating tracked
+outputs. They do not rerun model training, inference, routing fitting, or
 conformal calibration.
+
+The committed validation-overlap audit is pinned to MedMCQA revision
+`91c6572c454088bf71b679ad90aa8dffcd0d5868` and records fingerprints plus
+normalized-input hashes. Explicit CPU-only regeneration, when needed for
+review, writes outside committed evidence:
+
+```bash
+make audit
+make audit-overlap
+```
 
 ## Thesis Use
 

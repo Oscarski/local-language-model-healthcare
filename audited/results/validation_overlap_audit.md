@@ -2,6 +2,7 @@
 
 CPU-only post-run check using public dataset text and committed split indices.
 It is not model evaluation and does not alter recorded experiment outputs.
+Pinned source: `openlifescienceai/medmcqa` at revision `91c6572c454088bf71b679ad90aa8dffcd0d5868`.
 
 | Comparison | Exact normalized matches |
 |---|---:|

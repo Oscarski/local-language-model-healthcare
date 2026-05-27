@@ -4,6 +4,11 @@ This file documents the GPU phase that was performed by the supervisor before
 the final results were imported. It is retained for provenance; it is **not**
 a request to rerun training or feature extraction.
 
+The exact historical code/configuration snapshot is archived at
+`artifacts/professor_run/executed_source.tar.gz`. Current top-level
+entrypoints intentionally refuse execution in order to protect submitted
+evidence.
+
 ## Recorded Execution Outcome
 
 | Item | Recorded outcome |
@@ -54,6 +59,15 @@ repository. Therefore the final repository supports thesis writing and
 aggregate CPU-only auditing, but not numerical replay of model-dependent
 stages.
 
+Routine verification of the finalized repository is now read-only:
+
+```bash
+make verify-evidence
+```
+
+The historical commands above are retained only to document execution and
+must not be rerun into the committed evidence directories.
+
 ## Recorded Limitations
 
 - The historical `p_true` blocker accepted a tautological mass statistic; its
@@ -61,8 +75,10 @@ stages.
 - Historical conformal results must be read as local-selection-rate outputs,
   not a guarantee of correct clinical answers.
 - The recorded run also does not retain a validated formal local-rate
-  conformal claim: supervised layer selection overlapped the later calibration
-  subset and the saved threshold fails its same-sample inclusion invariant.
+  conformal claim: OOF probe construction preceded an outcome-stratified
+  downstream partition, supervised layer selection overlapped the later
+  calibration subset, and the saved threshold fails its same-sample inclusion
+  invariant.
 - The original execution narrative is preserved at
   `artifacts/professor_run/REPORT_ORIGINAL.md`; the corrected thesis-facing
   interpretation is in `REPORT.md`.

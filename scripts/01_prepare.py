@@ -38,10 +38,11 @@ log = logging.getLogger(__name__)
 
 ROOT = Path(__file__).parent.parent
 SPLITS_DIR = ROOT / "data" / "splits"
-from recorded_run_guard import protect_recorded_outputs
+from recorded_run_guard import protect_recorded_outputs, refuse_historical_execution
 
 
 def main(dry_run: bool) -> None:
+    refuse_historical_execution("scripts/01_prepare.py")
     if not dry_run:
         protect_recorded_outputs(
             [

@@ -28,7 +28,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from recorded_run_guard import protect_recorded_outputs
+from recorded_run_guard import protect_recorded_outputs, refuse_historical_execution
 
 from thesis.utils.metrics import (
     compute_augrc, compute_aurc, compute_ece, bootstrap_ci,
@@ -64,6 +64,7 @@ def _build_feature_matrix(names, H, gap, probe, p_true):
 
 
 def main() -> None:
+    refuse_historical_execution("scripts/07_evaluate.py")
     import numpy as np
 
     features_dir = ROOT / "data" / "features"

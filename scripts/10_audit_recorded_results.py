@@ -3,6 +3,8 @@
 This script validates provenance and cross-file consistency before publishing
 secondary material under ``audited/``. It does not load model checkpoints or
 feature arrays and never writes to ``results/``, ``figures/`` or ``logs/``.
+Committed audit outputs can be verified read-only with ``--verify-only``;
+regeneration requires an explicit output directory.
 """
 from __future__ import annotations
 
@@ -11,13 +13,21 @@ import hashlib
 import json
 import math
 import os
+import platform
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 ROOT = Path(__file__).parent.parent
 RAW_MANIFEST = ROOT / "artifacts" / "professor_run" / "raw_artifacts.sha256"
+AUDITED_MANIFEST = ROOT / "artifacts" / "audited_layer" / "committed_outputs.sha256"
 EXECUTED_CONFIG = ROOT / "configs" / "executed_professor_run.yaml"
+EXECUTED_SOURCE_ARCHIVE = ROOT / "artifacts" / "professor_run" / "executed_source.tar.gz"
+BASELINE_COMMIT = "a34323d"
+BASELINE_RAW_PATHS = ["results", "figures", "logs", "data/splits", "scripts/config.json"]
 
 
 class AuditValidationError(RuntimeError):
@@ -34,6 +44,18 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def validate_external_output_root(output_root: Path) -> Path:
+    """Reject audit regeneration into this repository, including symlink aliases."""
+    resolved = output_root.expanduser().resolve()
+    root = ROOT.resolve()
+    if resolved == root or root in resolved.parents:
+        raise AuditValidationError(
+            "Audit regeneration output must be outside the repository; "
+            "committed audited outputs are immutable submission evidence."
+        )
+    return resolved
 
 
 def _expected_immutable_paths() -> set[str]:
@@ -54,6 +76,7 @@ def _expected_immutable_paths() -> set[str]:
             "data/splits/routing_train_local_idx.json",
             "data/splits/iso_cal_local_idx.json",
             "data/splits/conformal_cal_local_idx.json",
+            "scripts/config.json",
             "artifacts/professor_run/REPORT_ORIGINAL.md",
         }
     )
@@ -98,6 +121,94 @@ def verify_raw_manifest(manifest_path: Path = RAW_MANIFEST) -> dict[str, Any]:
         manifest_display = str(manifest_path)
     return {
         "manifest": manifest_display,
+        "checked": len(entries),
+        "expected_paths": len(expected_paths),
+        "missing_paths": sorted(expected_paths - manifest_paths),
+        "unexpected_paths": sorted(manifest_paths - expected_paths),
+        "malformed_lines": malformed,
+        "unsafe_paths": unsafe_paths,
+        "duplicate_paths": duplicates,
+        "mismatches": mismatches,
+    }
+
+
+def verify_git_baseline_anchor() -> dict[str, Any]:
+    """Check raw evidence against the imported professor-run baseline commit."""
+    diff = subprocess.run(
+        ["git", "diff", "--quiet", BASELINE_COMMIT, "--", *BASELINE_RAW_PATHS],
+        cwd=ROOT,
+        check=False,
+    )
+    original = subprocess.run(
+        ["git", "show", f"{BASELINE_COMMIT}:REPORT.md"],
+        cwd=ROOT,
+        capture_output=True,
+        check=False,
+    )
+    archived = ROOT / "artifacts" / "professor_run" / "REPORT_ORIGINAL.md"
+    return {
+        "baseline_commit": BASELINE_COMMIT,
+        "raw_paths_unchanged_from_baseline": diff.returncode == 0,
+        "archived_report_matches_baseline_report": (
+            original.returncode == 0 and original.stdout == archived.read_bytes()
+        ),
+        "valid": (
+            diff.returncode == 0
+            and original.returncode == 0
+            and original.stdout == archived.read_bytes()
+        ),
+    }
+
+
+def verify_committed_audit_manifest(
+    manifest_path: Path = AUDITED_MANIFEST,
+) -> dict[str, Any]:
+    entries: dict[str, str] = {}
+    malformed: list[str] = []
+    unsafe_paths: list[str] = []
+    duplicates: list[str] = []
+    for line_no, line in enumerate(manifest_path.read_text().splitlines(), start=1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        parts = line.split(maxsplit=1)
+        if len(parts) != 2:
+            malformed.append(f"line {line_no}")
+            continue
+        expected, relative_path = parts[0], parts[1].strip()
+        path_obj = Path(relative_path)
+        if path_obj.is_absolute() or ".." in path_obj.parts:
+            unsafe_paths.append(relative_path)
+            continue
+        if relative_path in entries:
+            duplicates.append(relative_path)
+        entries[relative_path] = expected
+
+    expected_paths = {
+        str(path.relative_to(ROOT))
+        for path in (ROOT / "audited").rglob("*")
+        if path.is_file()
+    }
+    expected_paths.update(
+        {
+            "configs/executed_professor_run.yaml",
+            "scripts/10_audit_recorded_results.py",
+            "scripts/11_audit_validation_overlap.py",
+            "artifacts/professor_run/EXECUTED_SOURCE.md",
+            "artifacts/professor_run/executed_source.sha256",
+            "artifacts/professor_run/executed_source.tar.gz",
+        }
+    )
+    manifest_paths = set(entries)
+    mismatches: list[dict[str, str]] = []
+    for relative_path, expected_hash in sorted(entries.items()):
+        path = ROOT / relative_path
+        actual_hash = _sha256(path) if path.exists() else "MISSING"
+        if actual_hash != expected_hash:
+            mismatches.append(
+                {"path": relative_path, "expected": expected_hash, "actual": actual_hash}
+            )
+    return {
+        "manifest": str(manifest_path.relative_to(ROOT)),
         "checked": len(entries),
         "expected_paths": len(expected_paths),
         "missing_paths": sorted(expected_paths - manifest_paths),
@@ -261,6 +372,61 @@ def build_operating_intervals(evaluation: dict[str, Any]) -> dict[str, Any]:
     return intervals
 
 
+def build_failure_capture(evaluation: dict[str, Any]) -> dict[str, Any]:
+    """Describe errors withheld from local answers at the recorded operating point."""
+    captured: dict[str, Any] = {}
+    for split, values in evaluation["splits"].items():
+        n = int(values["n"])
+        n_local = int(values["n_local"])
+        correct = _recover_count(values["standalone_acc"], n)
+        local_correct = _recover_count(values["local_acc"], n_local)
+        total_errors = n - correct
+        local_errors = n_local - local_correct
+        errors_not_answered_locally = total_errors - local_errors
+        captured[split] = {
+            "total_model_errors": total_errors,
+            "errors_answered_locally": local_errors,
+            "errors_not_answered_locally": errors_not_answered_locally,
+            "descriptive_failure_capture_rate": round(
+                errors_not_answered_locally / total_errors, 4
+            ),
+        }
+    return {
+        "interpretation": (
+            "Descriptive secondary statistic reconstructed from recorded aggregate counts; "
+            "it is not a clinical safety guarantee or a newly evaluated policy."
+        ),
+        "splits": captured,
+    }
+
+
+def build_protocol_dependency_assessment() -> dict[str, Any]:
+    return {
+        "clean_fixed_score_split_conformal_protocol_supported": False,
+        "recorded_dependencies": [
+            {
+                "finding": "oof_probe_constructed_before_downstream_partition",
+                "evidence": (
+                    "scripts/04_probe.py generates OOF probe scores over all 13,307 "
+                    "probe examples before scripts/05_routing.py constructs "
+                    "routing_train/iso_cal/conformal_cal."
+                ),
+            },
+            {
+                "finding": "downstream_partition_stratified_by_correctness_label",
+                "evidence": (
+                    "Both train_test_split calls in scripts/05_routing.py use "
+                    "stratify=y or stratify=y_rest."
+                ),
+            },
+        ],
+        "interpretation": (
+            "These are dependencies of the recorded scoring/calibration construction. "
+            "They are disclosed limitations; no corrected rerun is asserted."
+        ),
+    }
+
+
 def build_crosscheck(results_dir: Path, certificate: dict[str, Any]) -> dict[str, Any]:
     evaluation = _read_json(results_dir / "evaluation.json")
     routing = _read_json(results_dir / "routing_metrics.json")
@@ -268,6 +434,7 @@ def build_crosscheck(results_dir: Path, certificate: dict[str, Any]) -> dict[str
     extraction = _read_json(results_dir / "extraction_metadata.json")
     layer = _read_json(results_dir / "best_layer.json")
     ablations = _read_json(results_dir / "ablations.json")
+    executed_config = yaml.safe_load(EXECUTED_CONFIG.read_text())
     issues: list[str] = []
 
     if layer["best_layer"] != extraction["best_layer"]:
@@ -302,6 +469,18 @@ def build_crosscheck(results_dir: Path, certificate: dict[str, Any]) -> dict[str
         for metric in ("n_local", "local_rate", "local_acc", "escalation_rate"):
             if row[metric] != values[metric]:
                 issues.append(f"{split}: global CP ablation disagrees on {metric}")
+    if executed_config["routing"]["features"] != recorded_features:
+        issues.append("citation config routing features disagree with recorded results")
+    if executed_config["routing"]["best_layer"] != layer["best_layer"]:
+        issues.append("citation config best layer disagrees with recorded results")
+    if executed_config["routing"]["recorded_q_hat_alpha_0_10"] != q_hat:
+        issues.append("citation config q_hat disagrees with recorded results")
+    citation_sizes = {
+        key: executed_config["routing"][key]
+        for key in ("routing_train", "iso_cal", "conformal_cal")
+    }
+    if citation_sizes != expected_sizes:
+        issues.append("citation config downstream partition disagrees with recorded indices")
 
     return {
         "checks_passed": not issues,
@@ -309,6 +488,7 @@ def build_crosscheck(results_dir: Path, certificate: dict[str, Any]) -> dict[str
         "recorded_best_layer": layer["best_layer"],
         "recorded_routing_features": recorded_features,
         "recorded_q_hat_alpha_0_10": q_hat,
+        "citation_config_sha256": _sha256(EXECUTED_CONFIG),
         "legacy_cp_guarantee_valid_true_splits": [
             split for split, data in evaluation["splits"].items()
             if data.get("cp_guarantee_valid") is True
@@ -324,6 +504,20 @@ def build_formal_validity_assessment(
         "medical_correctness_guarantee_supported": False,
         "recorded_local_rate_cp_guarantee_supported": False,
         "reasons": [
+            {
+                "finding": "oof_probe_constructed_before_downstream_calibration_partition",
+                "evidence": (
+                    "OOF probe scores were generated for the full probe_set before "
+                    "routing_train/iso_cal/conformal_cal were formed."
+                ),
+            },
+            {
+                "finding": "downstream_partition_stratified_by_correctness_label",
+                "evidence": (
+                    "The recorded downstream partition used correctness label y "
+                    "for stratification."
+                ),
+            },
             {
                 "finding": "calibration_set_reused_after_supervised_layer_selection",
                 "evidence": (
@@ -352,9 +546,11 @@ def build_claims() -> list[dict[str, str]]:
     return [
         {"status": "supported_observation", "claim": "Recorded in-dist local_rate is 0.7927 and local_accuracy is 0.6339.", "basis": "results/evaluation.json"},
         {"status": "supported_observation", "claim": "MMLU medical has the best recorded point AUROC and AUGRC.", "basis": "results/evaluation.json"},
+        {"status": "supported_observation", "claim": "The recorded policy withheld some model errors from local answering at its saved threshold.", "basis": "Reconstructed aggregate counts in accepted_errors_and_failure_capture.md."},
         {"status": "unsupported_interpretation", "claim": "The recorded pipeline guarantees correct or clinically safe local answers.", "basis": "The measured operating quantity is local selection frequency."},
-        {"status": "unsupported_interpretation", "claim": "The recorded local-rate split-CP result has formal validity.", "basis": "Calibration reuse, score-construction drift and threshold-invariant failure."},
+        {"status": "unsupported_interpretation", "claim": "The recorded local-rate split-CP result has formal validity.", "basis": "Score construction precedes the downstream partition, outcome-stratified partitioning, calibration reuse, score-construction drift and threshold-invariant failure."},
         {"status": "known_recorded_code_limitation", "claim": "Blocker 3 validated p_true through Yes/No mass.", "basis": "The code sums a two-token softmax; recorded mass is tautological."},
+        {"status": "known_recorded_code_limitation", "claim": "near-OOD/far-OOD labels denote verified distribution-shift severity.", "basis": "They are historical labels; thesis-facing text uses external MedQA and external MMLU medical evaluations."},
         {"status": "unsupported_interpretation", "claim": "The val cross-fold result restores deployment validity.", "basis": "It is a descriptive threshold-transfer diagnostic."},
         {"status": "not_testable_without_missing_artifacts", "claim": "Corrected threshold/tie handling changes final model-level results.", "basis": "Per-example feature arrays and checkpoints are absent."},
     ]
@@ -362,7 +558,8 @@ def build_claims() -> list[dict[str, str]]:
 
 def _write_markdown(output: Path, intervals: dict[str, Any], claims: list[dict[str, str]],
                     certificate: dict[str, Any], validity: dict[str, Any],
-                    threshold: dict[str, Any]) -> None:
+                    threshold: dict[str, Any], failure_capture: dict[str, Any],
+                    protocol: dict[str, Any]) -> None:
     claim_lines = ["# Claim Status Table", "", "Secondary CPU-only analysis of recorded aggregate evidence; not a model rerun.", "", "| Status | Claim | Basis |", "|---|---|---|"]
     claim_lines.extend(f"| {r['status']} | {r['claim']} | {r['basis']} |" for r in claims)
     (output / "claim_status_table.md").write_text("\n".join(claim_lines) + "\n")
@@ -399,6 +596,48 @@ def _write_markdown(output: Path, intervals: dict[str, Any], claims: list[dict[s
         f"{'yes' if threshold['passes_same_sample_inclusion_invariant'] else 'no'} |\n\n"
         f"{threshold['interpretation']}\n"
     )
+    failure_lines = [
+        "# Accepted Errors and Descriptive Failure Capture",
+        "",
+        failure_capture["interpretation"],
+        "",
+        "| Recorded split label | Total model errors | Errors answered locally | Errors not answered locally | Descriptive fraction not answered locally |",
+        "|---|---:|---:|---:|---:|",
+    ]
+    for split, row in failure_capture["splits"].items():
+        failure_lines.append(
+            f"| {split} | {row['total_model_errors']} | {row['errors_answered_locally']} | "
+            f"{row['errors_not_answered_locally']} | {row['descriptive_failure_capture_rate']:.4f} |"
+        )
+    (output / "accepted_errors_and_failure_capture.md").write_text(
+        "\n".join(failure_lines) + "\n"
+    )
+    protocol_lines = [
+        "# Protocol Dependency Assessment",
+        "",
+        "**Clean fixed-score split-conformal protocol supported:** no.",
+        "",
+    ]
+    protocol_lines.extend(
+        f"- {row['finding']}: {row['evidence']}" for row in protocol["recorded_dependencies"]
+    )
+    protocol_lines.extend(["", protocol["interpretation"]])
+    (output / "protocol_dependency_assessment.md").write_text(
+        "\n".join(protocol_lines) + "\n"
+    )
+    (output / "raw_artifact_errata.md").write_text(
+        "# Raw Artifact Errata\n\n"
+        "Raw professor-run JSONs, plots and logs are immutable evidence and have not "
+        "been rewritten. Use these corrections when citing them:\n\n"
+        "- `cp_guarantee_valid: true` in raw evaluation output is a legacy field; it "
+        "is not an adopted formal guarantee.\n"
+        "- Raw labels `near-OOD` and `far-OOD` are historical naming. Thesis text "
+        "should say external MedQA evaluation and external MMLU medical evaluation.\n"
+        "- Figures derived from the historical thresholding procedure are descriptive "
+        "outputs only and cannot support a medical-safety conclusion.\n"
+        "- The recorded Mondrian output uses an incomplete historical domain map and "
+        "is not a corrected per-domain result.\n"
+    )
     (output / "figure_usage_catalog.md").write_text(
         "# Figure Usage Catalog\n\n"
         "| Raw figure | Thesis use | Required qualification |\n|---|---|---|\n"
@@ -421,6 +660,12 @@ def _make_figures(output: Path, evaluation: dict[str, Any], exchange: dict[str, 
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+    pdf_metadata = {
+        "Creator": "diploma-thesis recorded-result audit",
+        "Producer": "matplotlib",
+        "CreationDate": None,
+        "ModDate": None,
+    }
 
     output.mkdir(parents=True, exist_ok=True)
     names = list(evaluation["splits"])
@@ -431,7 +676,7 @@ def _make_figures(output: Path, evaluation: dict[str, Any], exchange: dict[str, 
     ax.set(xticks=list(x), xticklabels=names, ylim=(0, 1), ylabel="Recorded proportion", title="Local selection frequency is not local correctness")
     ax.legend()
     fig.tight_layout()
-    fig.savefig(output / "local_rate_vs_local_accuracy.pdf")
+    fig.savefig(output / "local_rate_vs_local_accuracy.pdf", metadata=pdf_metadata)
     fig.savefig(output / "local_rate_vs_local_accuracy.png", dpi=200)
     plt.close(fig)
 
@@ -442,7 +687,7 @@ def _make_figures(output: Path, evaluation: dict[str, Any], exchange: dict[str, 
     ax.set(ylim=(0, 1), ylabel="Empirical local_rate on MedMCQA val", title="Recorded threshold-transfer diagnostic (descriptive)")
     ax.legend()
     fig.tight_layout()
-    fig.savefig(output / "threshold_transfer_diagnostic.pdf")
+    fig.savefig(output / "threshold_transfer_diagnostic.pdf", metadata=pdf_metadata)
     fig.savefig(output / "threshold_transfer_diagnostic.png", dpi=200)
     plt.close(fig)
 
@@ -453,12 +698,13 @@ def _make_figures(output: Path, evaluation: dict[str, Any], exchange: dict[str, 
     ax.set(ylim=(0.55, 0.77), ylabel="Recorded in-dist AUROC", title="Refitted feature-subset ablation (not deployed replay)")
     ax.tick_params(axis="x", rotation=30)
     fig.tight_layout()
-    fig.savefig(output / "recorded_ablation_deltas.pdf")
+    fig.savefig(output / "recorded_ablation_deltas.pdf", metadata=pdf_metadata)
     fig.savefig(output / "recorded_ablation_deltas.png", dpi=200)
     plt.close(fig)
 
 
-def _require_valid(raw: dict[str, Any], crosscheck: dict[str, Any]) -> None:
+def _require_valid(raw: dict[str, Any], crosscheck: dict[str, Any],
+                   baseline: dict[str, Any] | None = None) -> None:
     manifest_failures = [
         key for key in ("missing_paths", "unexpected_paths", "malformed_lines", "unsafe_paths", "duplicate_paths", "mismatches")
         if raw[key]
@@ -467,22 +713,49 @@ def _require_valid(raw: dict[str, Any], crosscheck: dict[str, Any]) -> None:
         raise AuditValidationError("Raw artifact manifest validation failed: " + ", ".join(manifest_failures))
     if not crosscheck["checks_passed"]:
         raise AuditValidationError("Recorded result crosscheck failed: " + "; ".join(crosscheck["issues"]))
+    if baseline is not None and not baseline["valid"]:
+        raise AuditValidationError("Raw evidence differs from imported professor-run baseline commit.")
+
+
+def _require_manifest_valid(manifest: dict[str, Any], label: str) -> None:
+    failures = [
+        key for key in ("missing_paths", "unexpected_paths", "malformed_lines",
+                        "unsafe_paths", "duplicate_paths", "mismatches")
+        if manifest[key]
+    ]
+    if failures:
+        raise AuditValidationError(f"{label} validation failed: " + ", ".join(failures))
+
+
+def verify_committed_evidence() -> dict[str, Any]:
+    raw = verify_raw_manifest()
+    baseline = verify_git_baseline_anchor()
+    certificate = build_split_certificate(ROOT / "data" / "splits")
+    crosscheck = build_crosscheck(ROOT / "results", certificate)
+    audited = verify_committed_audit_manifest()
+    _require_valid(raw, crosscheck, baseline)
+    _require_manifest_valid(audited, "Committed audit manifest")
+    return {"raw": raw, "baseline": baseline, "audited": audited, "crosscheck": crosscheck}
 
 
 def generate_audit(output_root: Path) -> dict[str, Any]:
+    output_root = validate_external_output_root(output_root)
     results = ROOT / "results"
     evaluation = _read_json(results / "evaluation.json")
     exchange = _read_json(results / "exchangeability_check.json")
     ablations = _read_json(results / "ablations.json")
     certificate = build_split_certificate(ROOT / "data" / "splits")
     raw = verify_raw_manifest()
+    baseline = verify_git_baseline_anchor()
     crosscheck = build_crosscheck(results, certificate)
-    _require_valid(raw, crosscheck)  # Validate all recorded inputs before publishing.
+    _require_valid(raw, crosscheck, baseline)  # Validate all recorded inputs before publishing.
 
     overlap = build_layer_selection_overlap(ROOT / "data" / "splits")
     threshold = build_threshold_invariant(_read_json(results / "conformal_thresholds.json"))
     validity = build_formal_validity_assessment(overlap, threshold)
     intervals = build_operating_intervals(evaluation)
+    failure_capture = build_failure_capture(evaluation)
+    protocol = build_protocol_dependency_assessment()
 
     result_output, figure_output = output_root / "results", output_root / "figures"
     result_output.mkdir(parents=True, exist_ok=True)
@@ -491,8 +764,14 @@ def generate_audit(output_root: Path) -> dict[str, Any]:
         "raw_professor_run_baseline_commit": "a34323d",
         "upstream_professor_revision_reported": "0dd71e1d68f57e6d3125f625d99f9f9c64ac2e9f",
         "executed_config_manifest": str(EXECUTED_CONFIG.relative_to(ROOT)),
+        "executed_config_sha256": _sha256(EXECUTED_CONFIG),
+        "executed_source_archive": str(EXECUTED_SOURCE_ARCHIVE.relative_to(ROOT)),
+        "executed_source_archive_sha256": _sha256(EXECUTED_SOURCE_ARCHIVE),
+        "generator_sha256": _sha256(Path(__file__)),
+        "python_runtime": platform.python_version(),
         "source_files": sorted(str(path.relative_to(ROOT)) for path in results.glob("*.json")),
         "raw_integrity": raw,
+        "git_baseline_anchor": baseline,
         "missing_for_numerical_replay": ["checkpoints/final/", "checkpoints/final_probe.pkl", "checkpoints/routing_lr.pkl", "checkpoints/calibrator.pkl", "data/features/*.npz", "data/features/*_hidden.npy", "data/features/probe_scores_oof.npy"],
     }
     outputs = {
@@ -502,10 +781,15 @@ def generate_audit(output_root: Path) -> dict[str, Any]:
         "layer_selection_overlap.json": overlap,
         "threshold_invariant_check.json": threshold,
         "formal_validity_assessment.json": validity,
+        "accepted_errors_and_failure_capture.json": failure_capture,
+        "protocol_dependency_assessment.json": protocol,
     }
     for filename, content in outputs.items():
         (result_output / filename).write_text(json.dumps(content, indent=2) + "\n")
-    _write_markdown(result_output, intervals, build_claims(), certificate, validity, threshold)
+    _write_markdown(
+        result_output, intervals, build_claims(), certificate, validity, threshold,
+        failure_capture, protocol,
+    )
     _make_figures(figure_output, evaluation, exchange, ablations)
     generated_names = [
         *(f"results/{filename}" for filename in outputs),
@@ -515,6 +799,9 @@ def generate_audit(output_root: Path) -> dict[str, Any]:
         "results/formal_validity_assessment.md",
         "results/threshold_invariant_check.md",
         "results/figure_usage_catalog.md",
+        "results/accepted_errors_and_failure_capture.md",
+        "results/protocol_dependency_assessment.md",
+        "results/raw_artifact_errata.md",
         "figures/local_rate_vs_local_accuracy.pdf",
         "figures/local_rate_vs_local_accuracy.png",
         "figures/threshold_transfer_diagnostic.pdf",
@@ -533,8 +820,28 @@ def generate_audit(output_root: Path) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate CPU-only audited outputs from recorded evidence.")
-    parser.add_argument("--output-dir", type=Path, default=ROOT / "audited")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help="Explicit regeneration output root; committed audited/ is not rewritten by default.",
+    )
+    parser.add_argument(
+        "--verify-only",
+        action="store_true",
+        help="Verify committed raw and audited evidence without writing files.",
+    )
     args = parser.parse_args()
+    if args.verify_only:
+        try:
+            verification = verify_committed_evidence()
+        except AuditValidationError as exc:
+            raise SystemExit(f"Evidence verification refused: {exc}") from exc
+        print(f"Immutable raw artifacts verified: {verification['raw']['checked']}")
+        print(f"Committed audit artifacts verified: {verification['audited']['checked']}")
+        print("Recorded cross-file consistency: pass")
+        return
+    if args.output_dir is None:
+        parser.error("choose --verify-only or provide --output-dir for explicit regeneration")
     try:
         summary = generate_audit(args.output_dir)
     except AuditValidationError as exc:

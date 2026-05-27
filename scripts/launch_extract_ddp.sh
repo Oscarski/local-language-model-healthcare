@@ -16,6 +16,11 @@
 
 set -euo pipefail
 
+echo "Historical launcher disabled in the finalized thesis checkout." >&2
+echo "The exact executed source is archived in artifacts/professor_run/executed_source.tar.gz." >&2
+echo "Use 'make verify-evidence' for read-only verification." >&2
+exit 1
+
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 

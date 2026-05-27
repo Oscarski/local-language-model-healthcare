@@ -3,6 +3,11 @@
   "raw_professor_run_baseline_commit": "a34323d",
   "upstream_professor_revision_reported": "0dd71e1d68f57e6d3125f625d99f9f9c64ac2e9f",
   "executed_config_manifest": "configs/executed_professor_run.yaml",
+  "executed_config_sha256": "0baf66f832c9721b01849be3988c77925b9435ca47adee695b93c11b0dc302a2",
+  "executed_source_archive": "artifacts/professor_run/executed_source.tar.gz",
+  "executed_source_archive_sha256": "ba22a8b7c598b16a87fe605dfae3e6499b7a25334501643cb0dba2cf2b20afff",
+  "generator_sha256": "978b3d364a51febab1d5d8d1b717c8b5f7051f47b862857543bf52bef0bf46bb",
+  "python_runtime": "3.11.11",
   "source_files": [
     "results/ablations.json",
     "results/best_layer.json",
@@ -17,14 +22,20 @@
   ],
   "raw_integrity": {
     "manifest": "artifacts/professor_run/raw_artifacts.sha256",
-    "checked": 74,
-    "expected_paths": 74,
+    "checked": 75,
+    "expected_paths": 75,
     "missing_paths": [],
     "unexpected_paths": [],
     "malformed_lines": [],
     "unsafe_paths": [],
     "duplicate_paths": [],
     "mismatches": []
+  },
+  "git_baseline_anchor": {
+    "baseline_commit": "a34323d",
+    "raw_paths_unchanged_from_baseline": true,
+    "archived_report_matches_baseline_report": true,
+    "valid": true
   },
   "missing_for_numerical_replay": [
     "checkpoints/final/",

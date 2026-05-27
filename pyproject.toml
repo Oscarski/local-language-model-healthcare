@@ -1,7 +1,7 @@
 [project]
 name = "thesis"
 version = "0.1.0"
-description = "Risk-Controlled Escalation for On-Device Medical Language Models"
+description = "Methodological Audit of Routing for an Edge-Deployed Medical Language Model"
 requires-python = ">=3.11"
 dependencies = [
     "torch>=2.2",
@@ -20,6 +20,7 @@ dependencies = [
     "matplotlib>=3.8",
     "seaborn>=0.13",
     "tqdm>=4.66",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]

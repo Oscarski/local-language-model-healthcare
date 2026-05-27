@@ -51,11 +51,17 @@ Other original planning assumptions were superseded during execution:
    supportable because calibration was not untouched by supervised selection.
 6. Calibration used OOF probe scores while evaluation used the final full-set
    probe, creating an additional score-construction mismatch.
-7. The recorded MMLU superiority is observational; causal explanations are
+7. OOF probe scores were constructed for all `13,307` probe examples before
+   the executed three-way downstream partition, which was stratified by
+   correctness outcome. This is a further disclosed dependency of the
+   historical calibration design.
+8. Raw `near-OOD`/`far-OOD` names are retained only as historical labels;
+   final prose uses external MedQA-USMLE and external MMLU medical evaluation.
+9. The recorded MMLU superiority is observational; causal explanations are
    hypotheses.
-8. Historical Mondrian results use an incomplete domain-name mapping and are
+10. Historical Mondrian results use an incomplete domain-name mapping and are
    not corrected post hoc.
-9. The completed CPU-only validation overlap check finds one normalized exact
+11. The completed CPU-only validation overlap check finds one normalized exact
    match from `train_ft` into MedMCQA val and none from `probe_set`; this is a
    disclosed limitation, not a rerun of evaluation.
 
@@ -67,14 +73,18 @@ Other original planning assumptions were superseded during execution:
 | Recorded results | `REPORT.md`, `results/evaluation.json`, raw figures |
 | Ablations | `results/ablations.json`, qualified discussion in `REPORT.md` |
 | Methodological limitations | `REPORT.md`, `decisions.md`, `audited/results/claim_status_table.md` |
-| Reproducibility boundary | `PROVENANCE.md`, `configs/executed_professor_run.yaml`, artifact checksum manifest |
+| Reproducibility boundary | `PROVENANCE.md`, `configs/executed_professor_run.yaml`, `artifacts/professor_run/executed_source.tar.gz`, artifact checksum manifest |
 
 ## Completed Finalization Layer
 
 - CPU-only audit material under `audited/` validates recorded evidence without
   overwriting raw outputs.
+- Raw and committed audited evidence are verified read-only by default; any
+  regeneration writes to a separate explicit output directory.
 - Raw artifact hashes, split integrity, threshold-invariant failure, and
   formal-validity status are machine-checkable.
+- The audit includes raw-artifact errata, protocol-dependency findings, and
+  descriptive accepted-error/failure-capture counts.
 - `REPORT.md` and `decisions.md` are the canonical thesis-writing sources;
   raw plots require audited caption/usage guidance.
 
@@ -82,7 +92,7 @@ Other original planning assumptions were superseded during execution:
 
 - Use the canonical report and decision log while drafting the thesis.
 - Incorporate the completed validation-overlap audit disclosure in the
-  methodology/limitations text.
+  methodology/limitations text, including its pinned MedMCQA revision.
 
 ## Not Performed
 

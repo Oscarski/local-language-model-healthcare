@@ -46,8 +46,15 @@ but was superseded by the repartition used in the recorded downstream run.
 
 ### D-06 - Raw outputs remain immutable
 
-**Decision:** Do not overwrite raw `results/`, `figures/`, `logs/`, or the
-original professor report. New derived material is written under `audited/`.
+**Decision:** Do not overwrite raw `results/`, `figures/`, `logs/`, recorded
+split/config files, or the original professor report. Committed derived
+material under `audited/` has a separate integrity manifest; normal
+verification does not regenerate it.
+
+**Implementation:** The exact executable baseline source is archived at
+`artifacts/professor_run/executed_source.tar.gz`. The top-level historical
+entrypoints are retained for reading but disabled for execution in this
+submission checkout.
 
 ### D-07 - Terminology: local rate versus local accuracy
 
@@ -73,12 +80,15 @@ frequency. It does not control errors among local answers, and its recorded
 **Decision:** Do not state that the recorded split-conformal procedure has a
 validated formal guarantee even for `local_rate`.
 
-**Rationale:** Supervised layer selection used `2,000` examples sampled from
-the whole `probe_set`, including `483` examples later assigned to
-`conformal_cal`. Calibration used OOF probe scores while evaluation used a
-final full-probe-set model. Finally, the recorded same-sample operating point
-selects `2,944/3,307` examples where boundary-inclusive quantile application
-requires at least `2,978`; it fails a numerical invariant by `34` examples.
+**Rationale:** OOF probe scores were constructed over all `13,307` retained
+probe examples before the downstream partition, and that partition was
+stratified by correctness outcome. Supervised layer selection additionally
+used `2,000` examples sampled from the whole `probe_set`, including `483`
+examples later assigned to `conformal_cal`. Calibration used OOF probe scores
+while evaluation used a final full-probe-set model. Finally, the recorded
+same-sample operating point selects `2,944/3,307` examples where
+boundary-inclusive quantile application requires at least `2,978`; it fails a
+numerical invariant by `34` examples.
 
 ### D-10 - Threshold-transfer diagnostic wording
 
@@ -101,6 +111,10 @@ softmax and is always one.
 
 **Decision:** State only that MMLU medical has better recorded point metrics.
 Treat pretraining exposure or benchmark familiarity as untested hypotheses.
+
+**Terminology:** Preserve `near-OOD` and `far-OOD` only when naming raw
+historical result fields. In thesis-facing claims call these external
+MedQA-USMLE and external MMLU medical evaluations.
 
 ### D-13 - Mondrian limitation
 
@@ -130,7 +144,9 @@ complete absence of contamination.
 **Post-run addendum:** A CPU-only exact-normalized comparison against the
 repurposed MedMCQA validation evaluation set found `1/4,183` validation
 questions in `train_ft` and `0` in `probe_set`. Retain recorded evaluation
-metrics and disclose this overlap.
+metrics and disclose this overlap. The comparison is pinned to MedMCQA
+revision `91c6572c454088bf71b679ad90aa8dffcd0d5868` with recorded input
+fingerprints and normalized-text hashes.
 
 ### D-17 - Tie-sensitive historical aggregate metrics
 
@@ -152,3 +168,20 @@ evidence, not for full numerical replay.
 **Rationale:** Checkpoints and extracted feature arrays are not committed.
 CPU-only audit outputs may summarize existing JSON results but cannot replace
 missing model-level artifacts.
+
+### D-19 - Read-only verification by default
+
+**Decision:** Default validation commands verify recorded raw and committed
+audited evidence without rewriting either layer. Any CPU-only regeneration
+must target a separate output directory.
+
+**Rationale:** Thesis-facing evidence should not change as a side effect of a
+routine integrity check.
+
+### D-20 - Secondary accepted-error analysis only
+
+**Decision:** Report reconstructed counts of errors answered locally versus
+not answered locally only as descriptive aggregate analysis.
+
+**Rationale:** These counts are useful for discussing practical routing
+behavior, but the recorded protocol cannot turn them into a safety guarantee.

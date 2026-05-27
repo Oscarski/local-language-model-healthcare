@@ -36,7 +36,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from recorded_run_guard import protect_recorded_outputs
+from recorded_run_guard import protect_recorded_outputs, refuse_historical_execution
 
 from thesis.utils.metrics import (
     compute_augrc, compute_aurc, compute_ece, bootstrap_ci,
@@ -123,6 +123,7 @@ def _full_metrics(routing_scores, y, q_hat):
 
 
 def main() -> None:
+    refuse_historical_execution("scripts/08_ablations.py")
     import numpy as np
     from sklearn.linear_model import LogisticRegressionCV, LogisticRegression
     from sklearn.isotonic import IsotonicRegression

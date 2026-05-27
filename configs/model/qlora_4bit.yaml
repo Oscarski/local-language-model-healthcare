@@ -1,3 +1,4 @@
+# SUPERSEDED FALLBACK CONFIG. QLoRA was not used in the recorded professor run.
 name: qlora_4bit
 base_model: mistralai/Mistral-7B-Instruct-v0.3
 quantization: nf4           # 4-bit NF4 quantization
@@ -25,6 +26,5 @@ device_map: auto
 gradient_checkpointing: true
 optim: paged_adamw_32bit
 
-# NOTE: QLoRA fallback — run KL ablation after fine-tuning:
-# python scripts/00_verify.py --blocker kl
-# Expected: mean KL(4-bit || FP16) < 0.05 nats
+# NOTE: This fallback was planned but not executed. No QLoRA/KL result is
+# available and no such validation entrypoint exists in the finalized repo.

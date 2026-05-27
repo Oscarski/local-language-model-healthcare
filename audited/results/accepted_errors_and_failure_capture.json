@@ -1,0 +1,23 @@
+{
+  "interpretation": "Descriptive secondary statistic reconstructed from recorded aggregate counts; it is not a clinical safety guarantee or a newly evaluated policy.",
+  "splits": {
+    "in-dist": {
+      "total_model_errors": 1804,
+      "errors_answered_locally": 1214,
+      "errors_not_answered_locally": 590,
+      "descriptive_failure_capture_rate": 0.3271
+    },
+    "near-OOD": {
+      "total_model_errors": 552,
+      "errors_answered_locally": 481,
+      "errors_not_answered_locally": 71,
+      "descriptive_failure_capture_rate": 0.1286
+    },
+    "far-OOD": {
+      "total_model_errors": 297,
+      "errors_answered_locally": 246,
+      "errors_not_answered_locally": 51,
+      "descriptive_failure_capture_rate": 0.1717
+    }
+  }
+}

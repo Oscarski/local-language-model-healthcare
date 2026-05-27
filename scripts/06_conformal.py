@@ -36,7 +36,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(ROOT / "src"))
-from recorded_run_guard import protect_recorded_outputs
+from recorded_run_guard import protect_recorded_outputs, refuse_historical_execution
 
 logging.basicConfig(
     level=logging.INFO,
@@ -98,6 +98,7 @@ def _compute_q_hat(routing_scores, alpha: float) -> float:
 
 
 def main() -> None:
+    refuse_historical_execution("scripts/06_conformal.py")
     import numpy as np
 
     features_dir = ROOT / "data" / "features"

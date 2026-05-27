@@ -3,6 +3,14 @@
   "recorded_local_rate_cp_guarantee_supported": false,
   "reasons": [
     {
+      "finding": "oof_probe_constructed_before_downstream_calibration_partition",
+      "evidence": "OOF probe scores were generated for the full probe_set before routing_train/iso_cal/conformal_cal were formed."
+    },
+    {
+      "finding": "downstream_partition_stratified_by_correctness_label",
+      "evidence": "The recorded downstream partition used correctness label y for stratification."
+    },
+    {
       "finding": "calibration_set_reused_after_supervised_layer_selection",
       "evidence": "483 of 2000 layer-sweep examples occur in conformal_cal"
     },

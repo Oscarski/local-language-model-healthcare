@@ -1,3 +1,4 @@
+# HISTORICAL MODEL CONFIG. The recorded run used configs/finetune_config_ddp.yaml.
 name: lora_fp16
 base_model: mistralai/Mistral-7B-Instruct-v0.3
 quantization: null          # FP16, no quantization
