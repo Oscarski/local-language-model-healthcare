@@ -21,7 +21,7 @@
 set -euo pipefail
 
 echo "Historical launcher disabled in the finalized thesis checkout." >&2
-echo "The exact executed source is archived in artifacts/professor_run/executed_source.tar.gz." >&2
+echo "The exact executed source is archived in artifacts/run/executed_source.tar.gz." >&2
 echo "Use 'make verify-evidence' for read-only verification." >&2
 exit 1
 
@@ -31,7 +31,7 @@ cd "$PROJECT_ROOT"
 # 1) Use 'ai' conda env directly via absolute paths.
 #    (PATH-based 'conda activate ai' is unreliable here because Claude Code's
 #     shell snapshot pins PATH to envs/rp/bin; we side-step that by being explicit.)
-AI_ENV="/home/lciechanowski/anaconda3/envs/ai"
+AI_ENV="${AI_ENV:-$HOME/anaconda3/envs/ai}"
 AI_PYTHON="$AI_ENV/bin/python"
 AI_TORCHRUN="$AI_ENV/bin/torchrun"
 if [ ! -x "$AI_PYTHON" ] || [ ! -x "$AI_TORCHRUN" ]; then

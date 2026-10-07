@@ -1,8 +1,8 @@
 # Executed Source Snapshot
 
 `executed_source.tar.gz` is an archive of the code and configuration tree at
-local baseline commit `a34323d` (`Import final professor run snapshot
-(0dd71e1)`), before the post-run audit/documentation layer was added.
+local baseline commit `a34323d` (imported final run snapshot,
+upstream `0dd71e1`), before the post-run audit/documentation layer was added.
 
 Archive scope:
 
@@ -12,7 +12,7 @@ Archive scope:
 - `src/`
 
 The archive contains 28 tracked files and is the citation-safe reference for
-the executable source associated with the preserved professor run. The
+the executable source associated with the preserved run. The
 top-level working tree is an audited derivative and intentionally contains
 additional guards and interpretation notes.
 

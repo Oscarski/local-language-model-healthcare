@@ -73,12 +73,12 @@ Other original planning assumptions were superseded during execution:
 | Recorded results | `REPORT.md`, `results/evaluation.json`, raw figures |
 | Ablations | `results/ablations.json`, qualified discussion in `REPORT.md` |
 | Methodological limitations | `REPORT.md`, `decisions.md`, `audited/results/claim_status_table.md` |
-| Reproducibility boundary | `PROVENANCE.md`, `configs/executed_professor_run.yaml`, `artifacts/professor_run/executed_source.tar.gz`, artifact checksum manifest |
+| Reproducibility boundary | `PROVENANCE.md`, `configs/executed_run.yaml`, `artifacts/run/executed_source.tar.gz`, artifact checksum manifest |
 
 ## Completed Finalization Layer
 
-- CPU-only audit material under `audited/` validates recorded evidence without
-  overwriting raw outputs.
+- CPU-only audit material under `audited/` verifies the integrity and internal
+  consistency of recorded evidence without overwriting raw outputs.
 - Raw and committed audited evidence are verified read-only by default; any
   regeneration writes to a separate explicit output directory.
 - Raw artifact hashes, split integrity, threshold-invariant failure, and

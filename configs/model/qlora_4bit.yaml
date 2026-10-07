@@ -1,4 +1,4 @@
-# SUPERSEDED FALLBACK CONFIG. QLoRA was not used in the recorded professor run.
+# SUPERSEDED FALLBACK CONFIG. QLoRA was not used in the recorded run.
 name: qlora_4bit
 base_model: mistralai/Mistral-7B-Instruct-v0.3
 quantization: nf4           # 4-bit NF4 quantization

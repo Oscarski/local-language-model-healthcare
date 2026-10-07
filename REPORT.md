@@ -1,12 +1,12 @@
 # Final Audited Experiment Report
-## Routing for an Edge-Deployed Medical LLM: Recorded Results and Methodological Limits
+## Safe Enough to Answer Locally? Uncertainty Routing for an Edge-Deployed Medical Local Language Model
 
 This is the canonical report for writing the final bachelor thesis. It
-interprets the completed professor-run experiment using only preserved
+interprets the completed experiment run using only preserved
 evidence. The original unedited execution report is retained at
-`artifacts/professor_run/REPORT_ORIGINAL.md`, and the exact executable source
+`artifacts/run/REPORT_ORIGINAL.md`, and the exact executable source
 snapshot associated with that run is preserved in
-`artifacts/professor_run/executed_source.tar.gz`.
+`artifacts/run/executed_source.tar.gz`.
 
 ## Executive Summary
 
@@ -223,18 +223,18 @@ corrected five-domain analysis.
 
 ## Artifacts and Reproducibility
 
-Raw professor-run artifacts remain under `results/`, `figures/`, and `logs/`
+Raw run artifacts remain under `results/`, `figures/`, and `logs/`
 and are integrity-recorded in
-`artifacts/professor_run/raw_artifacts.sha256`. The original report remains in
-`artifacts/professor_run/REPORT_ORIGINAL.md`.
+`artifacts/run/raw_artifacts.sha256`. The original report remains in
+`artifacts/run/REPORT_ORIGINAL.md`.
 
 Committed CPU-only audit outputs are preserved under `audited/`. They
 summarize preserved aggregate evidence and must not be described as a model
-rerun. Their checksums are maintained separately from raw professor outputs;
+rerun. Their checksums are maintained separately from raw run outputs;
 normal verification is read-only. Raw plotted interpretations are also
 historical artifacts; the corrected figure-use guidance is under
 `audited/results/`. Further provenance detail is in `PROVENANCE.md`, and
 executed protocol values suitable for citation are in
-`configs/executed_professor_run.yaml`.
+`configs/executed_run.yaml`.
 Known corrections for immutable raw artifacts are listed in
 `audited/results/raw_artifact_errata.md`.

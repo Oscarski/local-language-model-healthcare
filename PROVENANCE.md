@@ -1,6 +1,6 @@
 # Provenance and Artifact Boundary
 
-## Recorded Professor Run
+## Recorded Run
 
 This repository contains the recorded outputs of the completed GPU experiment
 performed by the supervisor on 25-26 May 2026.
@@ -9,7 +9,7 @@ performed by the supervisor on 25-26 May 2026.
 |---|---|
 | Upstream repository | `https://github.com/leontikos/local-language-model-healthcare` |
 | Upstream revision reported by imported baseline | `0dd71e1d68f57e6d3125f625d99f9f9c64ac2e9f` |
-| Local baseline commit | `a34323d` (`Import final professor run snapshot (0dd71e1)`) |
+| Local baseline commit | `a34323d` (imported final run snapshot, upstream `0dd71e1`) |
 | Hardware recorded in run report | 4 x NVIDIA L4 |
 | Successful fine-tune configuration | bf16, SDPA, LoRA, `learning_rate=5e-5` |
 
@@ -30,16 +30,16 @@ not be overwritten by later analysis:
 - `data/splits/iso_cal_local_idx.json`
 - `data/splits/conformal_cal_local_idx.json`
 - `scripts/config.json` (recorded blocker outputs; its `p_true` verdict is historical, not validated evidence)
-- `artifacts/professor_run/REPORT_ORIGINAL.md`
+- `artifacts/run/REPORT_ORIGINAL.md`
 
-`artifacts/professor_run/raw_artifacts.sha256` records SHA-256 digests for the
+`artifacts/run/raw_artifacts.sha256` records SHA-256 digests for the
 raw `results/`, `figures/`, `logs/`, evidence-bearing split/config files, and
 the archived original report.
 
 The exact executable source/configuration tree from local import baseline
 commit `a34323d` is archived at
-`artifacts/professor_run/executed_source.tar.gz`; its checksum and scope are
-documented in `artifacts/professor_run/EXECUTED_SOURCE.md`. The current
+`artifacts/run/executed_source.tar.gz`; its checksum and scope are
+documented in `artifacts/run/EXECUTED_SOURCE.md`. The current
 top-level scripts are an audited derivative containing guards and explanatory
 annotations and must not be confused with the historical executable snapshot.
 
@@ -57,7 +57,9 @@ submission's enforceable integrity anchor.
 
 Available in this repository:
 
-- source code used by the recorded run;
+- the archived source code used by the recorded run
+  (`artifacts/run/executed_source.tar.gz`); the current top-level
+  scripts are an audited, execution-guarded derivative;
 - final JSON result summaries;
 - rendered figures;
 - execution logs;

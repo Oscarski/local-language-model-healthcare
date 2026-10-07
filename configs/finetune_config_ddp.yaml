@@ -1,5 +1,5 @@
 # RECORDED EXECUTION CONFIGURATION (historical, non-runnable in this checkout).
-# Preserved to document what the professor ran; see artifacts/professor_run/executed_source.tar.gz.
+# Preserved to document what was run; see artifacts/run/executed_source.tar.gz.
 # Fine-tuning config — Mistral-7B LoRA bf16 on MedMCQA
 # DDP variant for 4× NVIDIA L4 (23 GB each, no NVLink)
 #

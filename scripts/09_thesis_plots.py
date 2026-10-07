@@ -6,7 +6,7 @@ large fonts (axis labels ≥ 16 pt) and are saved as PDF (vector) for LaTeX
 inclusion, plus PNG (300 DPI) for previewing.
 
 HISTORICAL AUDIT NOTE: the existing files in `figures/` are preserved raw
-outputs of the professor run. Known interpretation corrections are documented
+outputs of the run. Known interpretation corrections are documented
 in REPORT.md and are not applied by regenerating or overwriting those figures.
 
 Figures produced (under figures/):

@@ -2,7 +2,7 @@
 # python scripts/02_finetune.py model=qlora_4bit training.epochs=1
 #
 # SUPERSEDED PRE-RUN PLAN ONLY. The executed manifest is
-# configs/executed_professor_run.yaml. The completed downstream
+# configs/executed_run.yaml. The completed downstream
 # run did not use the routing counts below; it used 8,000 / 2,000 / 3,307 as
 # recorded in results/routing_metrics.json. Do not cite this file as the
 # executed downstream manifest.
@@ -22,7 +22,7 @@ paths:
   figures:       figures
 
 # NOTE: Fine-tuning parameters are in separate finetune config files. This
-# planning block predates the recorded professor run.
+# planning block predates the recorded run.
 training:
   epochs: 3
   batch_size: 2           # per_device; effective batch = 2×8 = 16 (matches finetune_config)

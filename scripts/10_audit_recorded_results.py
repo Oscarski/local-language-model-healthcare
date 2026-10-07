@@ -22,10 +22,10 @@ from typing import Any
 import yaml
 
 ROOT = Path(__file__).parent.parent
-RAW_MANIFEST = ROOT / "artifacts" / "professor_run" / "raw_artifacts.sha256"
+RAW_MANIFEST = ROOT / "artifacts" / "run" / "raw_artifacts.sha256"
 AUDITED_MANIFEST = ROOT / "artifacts" / "audited_layer" / "committed_outputs.sha256"
-EXECUTED_CONFIG = ROOT / "configs" / "executed_professor_run.yaml"
-EXECUTED_SOURCE_ARCHIVE = ROOT / "artifacts" / "professor_run" / "executed_source.tar.gz"
+EXECUTED_CONFIG = ROOT / "configs" / "executed_run.yaml"
+EXECUTED_SOURCE_ARCHIVE = ROOT / "artifacts" / "run" / "executed_source.tar.gz"
 BASELINE_COMMIT = "a34323d"
 BASELINE_RAW_PATHS = ["results", "figures", "logs", "data/splits", "scripts/config.json"]
 
@@ -77,7 +77,7 @@ def _expected_immutable_paths() -> set[str]:
             "data/splits/iso_cal_local_idx.json",
             "data/splits/conformal_cal_local_idx.json",
             "scripts/config.json",
-            "artifacts/professor_run/REPORT_ORIGINAL.md",
+            "artifacts/run/REPORT_ORIGINAL.md",
         }
     )
     return expected
@@ -133,7 +133,7 @@ def verify_raw_manifest(manifest_path: Path = RAW_MANIFEST) -> dict[str, Any]:
 
 
 def verify_git_baseline_anchor() -> dict[str, Any]:
-    """Check raw evidence against the imported professor-run baseline commit."""
+    """Check raw evidence against the imported run baseline commit."""
     diff = subprocess.run(
         ["git", "diff", "--quiet", BASELINE_COMMIT, "--", *BASELINE_RAW_PATHS],
         cwd=ROOT,
@@ -145,7 +145,7 @@ def verify_git_baseline_anchor() -> dict[str, Any]:
         capture_output=True,
         check=False,
     )
-    archived = ROOT / "artifacts" / "professor_run" / "REPORT_ORIGINAL.md"
+    archived = ROOT / "artifacts" / "run" / "REPORT_ORIGINAL.md"
     return {
         "baseline_commit": BASELINE_COMMIT,
         "raw_paths_unchanged_from_baseline": diff.returncode == 0,
@@ -190,12 +190,12 @@ def verify_committed_audit_manifest(
     }
     expected_paths.update(
         {
-            "configs/executed_professor_run.yaml",
+            "configs/executed_run.yaml",
             "scripts/10_audit_recorded_results.py",
             "scripts/11_audit_validation_overlap.py",
-            "artifacts/professor_run/EXECUTED_SOURCE.md",
-            "artifacts/professor_run/executed_source.sha256",
-            "artifacts/professor_run/executed_source.tar.gz",
+            "artifacts/run/EXECUTED_SOURCE.md",
+            "artifacts/run/executed_source.sha256",
+            "artifacts/run/executed_source.tar.gz",
         }
     )
     manifest_paths = set(entries)
@@ -578,7 +578,7 @@ def _write_markdown(output: Path, intervals: dict[str, Any], claims: list[dict[s
         "| Stage | routing_train | iso_cal | conformal_cal | Use |\n|---|---:|---:|---:|---|\n"
         f"| Initial preparation | {initial['routing_train']:,} | {initial['iso_cal']:,} | - | Superseded downstream |\n"
         f"| Recorded downstream | {executed['routing_train']:,} | {executed['iso_cal']:,} | {executed['conformal_cal']:,} | Used in raw results |\n\n"
-        "Use `configs/executed_professor_run.yaml` for citation; older configs are pre-run plans.\n"
+        "Use `configs/executed_run.yaml` for citation; older configs are pre-run plans.\n"
     )
     reason_lines = "\n".join(f"- {r['finding']}: {r['evidence']}" for r in validity["reasons"])
     (output / "formal_validity_assessment.md").write_text(
@@ -627,7 +627,7 @@ def _write_markdown(output: Path, intervals: dict[str, Any], claims: list[dict[s
     )
     (output / "raw_artifact_errata.md").write_text(
         "# Raw Artifact Errata\n\n"
-        "Raw professor-run JSONs, plots and logs are immutable evidence and have not "
+        "Raw run JSONs, plots and logs are immutable evidence and have not "
         "been rewritten. Use these corrections when citing them:\n\n"
         "- `cp_guarantee_valid: true` in raw evaluation output is a legacy field; it "
         "is not an adopted formal guarantee.\n"
@@ -714,7 +714,7 @@ def _require_valid(raw: dict[str, Any], crosscheck: dict[str, Any],
     if not crosscheck["checks_passed"]:
         raise AuditValidationError("Recorded result crosscheck failed: " + "; ".join(crosscheck["issues"]))
     if baseline is not None and not baseline["valid"]:
-        raise AuditValidationError("Raw evidence differs from imported professor-run baseline commit.")
+        raise AuditValidationError("Raw evidence differs from imported run baseline commit.")
 
 
 def _require_manifest_valid(manifest: dict[str, Any], label: str) -> None:
@@ -761,8 +761,8 @@ def generate_audit(output_root: Path) -> dict[str, Any]:
     result_output.mkdir(parents=True, exist_ok=True)
     artifact_manifest = {
         "audit_type": "secondary_analysis_of_recorded_aggregate_outputs",
-        "raw_professor_run_baseline_commit": "a34323d",
-        "upstream_professor_revision_reported": "0dd71e1d68f57e6d3125f625d99f9f9c64ac2e9f",
+        "raw_run_baseline_commit": "a34323d",
+        "upstream_revision_reported": "0dd71e1d68f57e6d3125f625d99f9f9c64ac2e9f",
         "executed_config_manifest": str(EXECUTED_CONFIG.relative_to(ROOT)),
         "executed_config_sha256": _sha256(EXECUTED_CONFIG),
         "executed_source_archive": str(EXECUTED_SOURCE_ARCHIVE.relative_to(ROOT)),

@@ -1,6 +1,6 @@
-# Medical LLM Routing - Final Thesis Repository
+# Safe Enough to Answer Locally? - Final Thesis Repository
 
-This repository contains a completed professor-run experiment plus an
+This repository contains a completed experiment run plus an
 append-only methodological audit layer. The GPU pipeline has already run; do
 not modify or rerun it as part of thesis finalization.
 
@@ -10,8 +10,8 @@ not modify or rerun it as part of thesis finalization.
 - `PROVENANCE.md` - raw artifact boundary and replay limitations.
 - `decisions.md` - authoritative interpretation decisions.
 - `roadmap.md` - completed-run and writing roadmap.
-- `artifacts/professor_run/REPORT_ORIGINAL.md` - original execution report.
-- `artifacts/professor_run/executed_source.tar.gz` - exact executable source
+- `artifacts/run/REPORT_ORIGINAL.md` - original execution report.
+- `artifacts/run/executed_source.tar.gz` - exact executable source
   archive at baseline commit `a34323d`.
 
 ## Recorded Run
@@ -35,10 +35,10 @@ Never overwrite:
 - `logs/*`
 - `data/splits/*_local_idx.json`
 - `scripts/config.json`
-- `artifacts/professor_run/REPORT_ORIGINAL.md`
+- `artifacts/run/REPORT_ORIGINAL.md`
 
 The raw run is integrity-recorded by
-`artifacts/professor_run/raw_artifacts.sha256`.
+`artifacts/run/raw_artifacts.sha256`.
 
 ## Audit Layer
 
@@ -82,5 +82,5 @@ pytest -q
 recomputation, corrected routing, or corrected conformal analysis is possible
 from this repository alone.
 
-Use `configs/executed_professor_run.yaml` for executed protocol values. The
+Use `configs/executed_run.yaml` for executed protocol values. The
 other top-level routing/dataset configs contain superseded planning values.

@@ -8,7 +8,7 @@
     "p_true"
   ],
   "recorded_q_hat_alpha_0_10": 0.5814,
-  "citation_config_sha256": "0baf66f832c9721b01849be3988c77925b9435ca47adee695b93c11b0dc302a2",
+  "citation_config_sha256": "5b5894cb6a994f54f3d4ba5f3929470f19182598b058634aa32d892f51c06674",
   "legacy_cp_guarantee_valid_true_splits": [
     "in-dist"
   ],

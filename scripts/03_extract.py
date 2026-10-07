@@ -4,7 +4,7 @@ KROK 4 — FEATURE EXTRACTION
 Extracts uncertainty features and hidden states from the fine-tuned model.
 
 HISTORICAL AUDIT NOTE: this is the implementation used in the recorded
-professor run. `p_true` below is conditional P(Yes | {Yes, No}), not validated
+run. `p_true` below is conditional P(Yes | {Yes, No}), not validated
 full-vocabulary mass or calibrated P(correct). The official MedMCQA test split
 was attempted but yielded no labelled evaluation output because `cop=-1`.
 
@@ -1024,7 +1024,7 @@ def main() -> None:
     meta_path.write_text(json.dumps(metadata, indent=2))
     log.info("Extraction metadata saved to %s", meta_path)
 
-    print("\nSend to student (via professor):")
+    print("\nSend back for analysis:")
     print(f"  {features_dir}/*.npz  and  *.npy   (~500 MB total)")
     print(f"  {ROOT / 'checkpoints' / 'final'}/  (LoRA adapter, ~150 MB)")
     print(f"  {results_dir}/layer_sweep.json  +  extraction_metadata.json")

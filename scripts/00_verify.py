@@ -6,7 +6,7 @@ only ``--blocker status``; re-running historical blocker checks would overwrite
 the evidence-bearing ``scripts/config.json`` file.
 
 HISTORICAL AUDIT NOTE: BLOCKER 3 below is retained exactly as executed in the
-professor run. It applies softmax only to the Yes/No logits and then sums those
+run. It applies softmax only to the Yes/No logits and then sums those
 two probabilities, so the recorded `mass` statistic is tautologically 1.0.
 It must not be interpreted as validation of full-vocabulary Yes/No mass or of
 the predictive usefulness of p_true.

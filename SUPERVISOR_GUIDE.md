@@ -5,7 +5,7 @@ the final results were imported. It is retained for provenance; it is **not**
 a request to rerun training or feature extraction.
 
 The exact historical code/configuration snapshot is archived at
-`artifacts/professor_run/executed_source.tar.gz`. Current top-level
+`artifacts/run/executed_source.tar.gz`. Current top-level
 entrypoints intentionally refuse execution in order to protect submitted
 evidence.
 
@@ -41,7 +41,7 @@ under `results/`, `figures/`, and `logs/`.
 
 ## Artifacts Not Present In Git
 
-The professor machine held additional files documented in the original run
+The execution machine held additional files documented in the original run
 report:
 
 ```text
@@ -80,5 +80,5 @@ must not be rerun into the committed evidence directories.
   calibration subset, and the saved threshold fails its same-sample inclusion
   invariant.
 - The original execution narrative is preserved at
-  `artifacts/professor_run/REPORT_ORIGINAL.md`; the corrected thesis-facing
+  `artifacts/run/REPORT_ORIGINAL.md`; the corrected thesis-facing
   interpretation is in `REPORT.md`.

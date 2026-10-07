@@ -239,7 +239,7 @@ def main() -> None:
     dtype_map = {"bfloat16": torch.bfloat16, "float16": torch.float16, "float32": torch.float32}
     torch_dtype = dtype_map[cfg["model"]["torch_dtype"]]
 
-    # Log available VRAM so professor can diagnose OOM issues
+    # Log available VRAM to help diagnose OOM issues
     if torch.cuda.is_available():
         gpu_name = torch.cuda.get_device_name(0)
         total_gb = torch.cuda.get_device_properties(0).total_memory / 1e9

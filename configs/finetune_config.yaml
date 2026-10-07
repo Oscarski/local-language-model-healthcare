@@ -1,5 +1,5 @@
 # HISTORICAL PLANNING CONFIG ONLY.
-# It was superseded by finetune_config_ddp.yaml in the recorded professor run.
+# It was superseded by finetune_config_ddp.yaml in the recorded run.
 # Do not use this thesis-attachment checkout to rerun training.
 # Fine-tuning config — Mistral-7B LoRA FP16 on MedMCQA
 # Override from CLI: python scripts/02_finetune.py training.learning_rate=1e-4

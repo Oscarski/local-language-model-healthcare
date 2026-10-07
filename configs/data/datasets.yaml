@@ -1,5 +1,5 @@
 # SUPERSEDED PRE-RUN PLAN ONLY. Do not cite or execute this file as the
-# completed protocol. The executed manifest is ../executed_professor_run.yaml.
+# completed protocol. The executed manifest is ../executed_run.yaml.
 # The recorded run retained probe_set=13,307, repartitioned it to
 # 8,000 / 2,000 / 3,307, and used MedMCQA validation for nominal in-dist
 # evaluation because official test labels were hidden.

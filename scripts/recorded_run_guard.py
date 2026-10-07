@@ -1,4 +1,4 @@
-"""Write guard for immutable outputs of the completed professor run."""
+"""Write guard for immutable outputs of the completed run."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -9,8 +9,8 @@ def refuse_historical_execution(step: str) -> NoReturn:
     """Disable reruns of the executed pipeline in the thesis attachment checkout."""
     raise SystemExit(
         f"{step} is preserved as historical executed source, not an active rerun entrypoint.\n"
-        "This checkout contains immutable evidence from the completed professor run. "
-        "The exact executable snapshot is archived under artifacts/professor_run/ "
+        "This checkout contains immutable evidence from the completed run. "
+        "The exact executable snapshot is archived under artifacts/run/ "
         "and anchored at git commit a34323d.\n"
         "Use `make verify-evidence` for read-only checks or a separate checkout "
         "for any future reproduction."
@@ -21,7 +21,7 @@ def protect_recorded_outputs(paths: Iterable[Path], step: str) -> None:
     """Refuse overwriting raw recorded evidence.
 
     Reproduction must write to a separate checkout or output root. Recorded
-    professor-run artifacts in this repository are never overwrite targets.
+    run artifacts in this repository are never overwrite targets.
     """
     protected = sorted(str(path) for path in paths)
     if protected:

@@ -17,14 +17,14 @@
 set -euo pipefail
 
 echo "Historical launcher disabled in the finalized thesis checkout." >&2
-echo "The exact executed source is archived in artifacts/professor_run/executed_source.tar.gz." >&2
+echo "The exact executed source is archived in artifacts/run/executed_source.tar.gz." >&2
 echo "Use 'make verify-evidence' for read-only verification." >&2
 exit 1
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
-AI_ENV="/home/lciechanowski/anaconda3/envs/ai"
+AI_ENV="${AI_ENV:-$HOME/anaconda3/envs/ai}"
 AI_PYTHON="$AI_ENV/bin/python"
 AI_TORCHRUN="$AI_ENV/bin/torchrun"
 if [ ! -x "$AI_PYTHON" ] || [ ! -x "$AI_TORCHRUN" ]; then

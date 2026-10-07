@@ -67,11 +67,11 @@ def test_raw_artifact_manifest_is_intact() -> None:
     assert result["unexpected_paths"] == []
     assert result["unsafe_paths"] == []
     assert result["mismatches"] == []
-    manifest = (ROOT / "artifacts" / "professor_run" / "raw_artifacts.sha256").read_text()
+    manifest = (ROOT / "artifacts" / "run" / "raw_artifacts.sha256").read_text()
     assert "scripts/config.json" in manifest
 
 
-def test_raw_artifacts_are_anchored_to_imported_professor_commit() -> None:
+def test_raw_artifacts_are_anchored_to_imported_baseline_commit() -> None:
     audit = _load_audit_module()
     result = audit.verify_git_baseline_anchor()
     assert result["raw_paths_unchanged_from_baseline"] is True

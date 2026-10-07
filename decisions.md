@@ -1,11 +1,11 @@
 # Audited Methodological Decision Log
 
 This log is authoritative for thesis writing. It distinguishes what was
-executed in the professor run from how those results may be interpreted.
+executed in the run from how those results may be interpreted.
 
 ## Recorded Execution Decisions
 
-### D-01 - Preserve the completed professor run
+### D-01 - Preserve the completed run
 
 **Decision:** Treat the imported GPU run as immutable recorded evidence.
 
@@ -47,12 +47,12 @@ but was superseded by the repartition used in the recorded downstream run.
 ### D-06 - Raw outputs remain immutable
 
 **Decision:** Do not overwrite raw `results/`, `figures/`, `logs/`, recorded
-split/config files, or the original professor report. Committed derived
+split/config files, or the original run report. Committed derived
 material under `audited/` has a separate integrity manifest; normal
 verification does not regenerate it.
 
 **Implementation:** The exact executable baseline source is archived at
-`artifacts/professor_run/executed_source.tar.gz`. The top-level historical
+`artifacts/run/executed_source.tar.gz`. The top-level historical
 entrypoints are retained for reading but disabled for execution in this
 submission checkout.
 

@@ -1,7 +1,7 @@
 # Archived Original Report
 
 `REPORT_ORIGINAL.md` is a byte-for-byte archive of the report imported with
-the recorded professor run. It is retained as provenance and intentionally
+the recorded run. It is retained as provenance and intentionally
 contains the interpretation used at execution time.
 
 It is superseded for thesis writing by the audited root [`REPORT.md`](../../REPORT.md).

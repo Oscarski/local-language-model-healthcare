@@ -1,6 +1,6 @@
 # Raw Artifact Errata
 
-Raw professor-run JSONs, plots and logs are immutable evidence and have not been rewritten. Use these corrections when citing them:
+Raw run JSONs, plots and logs are immutable evidence and have not been rewritten. Use these corrections when citing them:
 
 - `cp_guarantee_valid: true` in raw evaluation output is a legacy field; it is not an adopted formal guarantee.
 - Raw labels `near-OOD` and `far-OOD` are historical naming. Thesis text should say external MedQA evaluation and external MMLU medical evaluation.

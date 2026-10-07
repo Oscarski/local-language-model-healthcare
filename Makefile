@@ -1,4 +1,4 @@
-.PHONY: setup verify prepare finetune extract probe routing conformal evaluate ablations audit audit-overlap verify-evidence pipeline test lint clean
+.PHONY: setup verify verify-all prepare finetune finetune-qlora extract probe routing conformal evaluate ablations audit audit-overlap verify-evidence pipeline test lint format clean clean-features status
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 setup:
@@ -60,7 +60,7 @@ verify-evidence:
 
 # ── Historical pipeline guard ────────────────────────────────────────────────
 pipeline:
-	@printf '%s\n' 'Raw professor-run outputs are immutable. Run `make verify-evidence` instead.'
+	@printf '%s\n' 'Raw run outputs are immutable. Run `make verify-evidence` instead.'
 	@exit 1
 
 # ── Dev ──────────────────────────────────────────────────────────────────────
